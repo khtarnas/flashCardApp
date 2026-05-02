@@ -98,8 +98,8 @@ Lives in `HanaHou/Models/Language.swift`.
 
 ```swift
 enum Language: String, CaseIterable, Codable, Hashable {
-    case english, japanese, spanish, french, german,
-         chinese, korean, hawaiian, other
+    case english, japanese, spanish, mandarin,
+         hawaiian, other
 }
 ```
 

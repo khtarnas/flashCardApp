@@ -4,6 +4,11 @@ Significant decisions with rationale. Newest first. Size: mini | small | medium 
 
 ---
 
+### D029: Branching and PR conventions [small]
+**Date:** 2026-05-02
+**Decision:** Always branch off main. Use `feature/`, `fix/`, `docs/` prefixes. Regular merge by default, squash on a case-by-case basis. Delete branch after merge. Docs-only changes push directly to main. Code changes go through PRs with CodeRabbit auto-review in the GitHub UI.
+**Rationale:** Simple workflow for a solo project. Flexible granularity — each PR is a coherent unit. CodeRabbit provides free automated review on public repos.
+
 ### D028: Orientation lock via Info.plist as single point of change [mini]
 **Date:** 2026-05-02
 **Decision:** Portrait lock is implemented by setting `UISupportedInterfaceOrientations~ipad` in Info.plist. If that proves insufficient, a `UIApplicationDelegateAdaptor` is the fallback — still a single point. No per-view overrides.

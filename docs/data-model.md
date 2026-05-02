@@ -38,10 +38,7 @@ enum Language: String, CaseIterable {
     case english
     case japanese
     case spanish
-    case french
-    case german
-    case chinese
-    case korean
+    case mandarin
     case hawaiian
     case other
 }

@@ -5,7 +5,7 @@ inclusion: always
 
 ## What is HanaHou?
 
-HanaHou ("one more time" / "encore" in Hawaiian) is a personal iPadOS flashcard app designed for language learning. It prioritizes a clean, offline-first study experience with gradual layering of advanced features.
+HanaHou is a personal iPadOS flashcard app designed for language learning. It prioritizes a clean, offline-first study experience with gradual layering of advanced features.
 
 ## Who is it for?
 

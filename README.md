@@ -1,6 +1,6 @@
-# HanaHou 🌺
+# HanaHou
 
-**"One more time"** — A personal iPadOS flashcard app for language learning.
+A personal iPadOS flashcard app for language learning.
 
 ## What is this?
 

@@ -91,6 +91,17 @@ For each feature, follow three phases in order:
 - Three sentences or less
 - First line is the summary; keep it under 70 characters if possible
 
+### Branching and pull requests
+
+- Always branch off `main`.
+- Branch prefixes: `feature/`, `fix/`, `docs/`.
+- Each PR should be a coherent unit describable in one sentence. Granularity is flexible — one PR per feature, per phase, or per task, depending on what makes sense for the change.
+- Regular merge by default. Squash merge on a case-by-case basis.
+- Delete the branch after merge.
+- Docs-only changes can push directly to `main` — no PR needed.
+- Code changes go through PRs with CodeRabbit auto-review.
+- PR review happens in the GitHub UI.
+
 ### Prompting guidelines (for Spec mode and agent interactions)
 
 - State the user's goal, not just the feature name
