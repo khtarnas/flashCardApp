@@ -256,6 +256,41 @@ final class InMemoryDeckStoreTests: XCTestCase {
         XCTAssertEqual(after.first?.name, "Korean")
     }
 
+    func test_delete_nonExistentId_isSilentNoOp_andDoesNotEmit() throws {
+        let store = InMemoryDeckStore(clock: { Date(timeIntervalSince1970: 1_000) })
+        let seeded = try store.create(makeDraft(name: "Japanese"))
+        let before = try store.fetchAll()
+
+        var count = 0
+        store.changes
+            .sink { count += 1 }
+            .store(in: &cancellables)
+
+        // Deleting an id that doesn't exist must not throw, must not mutate
+        // the store, and must not emit on `changes`. Idempotent delete per
+        // DeckStore contract.
+        XCTAssertNoThrow(try store.delete(id: UUID()))
+
+        waitBriefly()
+
+        let after = try store.fetchAll()
+        XCTAssertEqual(
+            sorted(after).map(\.id),
+            sorted(before).map(\.id),
+            "Deleting a non-existent id must leave the store unchanged"
+        )
+        XCTAssertEqual(
+            after.first?.id,
+            seeded.id,
+            "The existing deck must still be present"
+        )
+        XCTAssertEqual(
+            count,
+            0,
+            "Change publisher must not emit for a no-op delete"
+        )
+    }
+
     // MARK: - Change-publisher emission
     // Requirements: 1.8
 

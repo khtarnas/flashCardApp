@@ -8,6 +8,7 @@
 import Foundation
 import CoreData
 import Combine
+import os
 
 final class CoreDataDeckStore: DeckStore {
 
@@ -15,6 +16,10 @@ final class CoreDataDeckStore: DeckStore {
     private let clock: () -> Date
     private let changesSubject = PassthroughSubject<Void, Never>()
     private var saveObserver: NSObjectProtocol?
+    private let logger = Logger(
+        subsystem: "com.hanahou",
+        category: "DeckStore"
+    )
 
     init(context: NSManagedObjectContext, clock: @escaping () -> Date = Date.init) {
         self.context = context
@@ -76,6 +81,7 @@ final class CoreDataDeckStore: DeckStore {
             try context.save()
         } catch {
             context.rollback()
+            logger.error("create save failed: \(error.localizedDescription, privacy: .public)")
             throw DeckStoreError.persistenceFailed(underlying: error)
         }
 
@@ -124,6 +130,7 @@ final class CoreDataDeckStore: DeckStore {
             try context.save()
         } catch {
             context.rollback()
+            logger.error("update(id:with:) save failed for \(id.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
             throw DeckStoreError.persistenceFailed(underlying: error)
         }
 
@@ -133,6 +140,7 @@ final class CoreDataDeckStore: DeckStore {
                 code: 500,
                 userInfo: [NSLocalizedDescriptionKey: "Failed to build snapshot after update"]
             )
+            logger.error("update(id:with:) succeeded but snapshot conversion failed for \(id.uuidString, privacy: .public)")
             throw DeckStoreError.persistenceFailed(underlying: underlying)
         }
         return updated
@@ -142,6 +150,7 @@ final class CoreDataDeckStore: DeckStore {
 
     func delete(id: UUID) throws {
         guard let deck = try fetchDeck(withId: id) else {
+            // Deleting a non-existent id is a silent no-op — idempotent by design.
             return
         }
         context.delete(deck)
@@ -150,6 +159,7 @@ final class CoreDataDeckStore: DeckStore {
             try context.save()
         } catch {
             context.rollback()
+            logger.error("delete(id:) save failed for \(id.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
             throw DeckStoreError.persistenceFailed(underlying: error)
         }
     }

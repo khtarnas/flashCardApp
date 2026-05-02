@@ -70,7 +70,7 @@ final class DeckEditorViewModelTests: XCTestCase {
         let vm = DeckEditorViewModel(mode: .create, store: store)
 
         vm.name = "   "
-        try? vm.validateName()
+        vm.validateName()
 
         guard case .empty = vm.nameError else {
             XCTFail("Expected nameError to be .empty, got \(String(describing: vm.nameError))")
@@ -86,7 +86,7 @@ final class DeckEditorViewModelTests: XCTestCase {
         let vm = DeckEditorViewModel(mode: .create, store: store)
 
         vm.name = "All Cards"
-        try? vm.validateName()
+        vm.validateName()
 
         guard case .reserved = vm.nameError else {
             XCTFail("Expected nameError to be .reserved, got \(String(describing: vm.nameError))")
@@ -103,7 +103,7 @@ final class DeckEditorViewModelTests: XCTestCase {
         let vm = DeckEditorViewModel(mode: .create, store: store)
 
         vm.name = "Japanese"
-        try? vm.validateName()
+        vm.validateName()
 
         guard case .duplicate = vm.nameError else {
             XCTFail("Expected nameError to be .duplicate, got \(String(describing: vm.nameError))")
@@ -116,7 +116,7 @@ final class DeckEditorViewModelTests: XCTestCase {
         let vm = DeckEditorViewModel(mode: .create, store: store)
 
         vm.name = "Japanese"
-        try? vm.validateName()
+        vm.validateName()
 
         XCTAssertNil(vm.nameError)
     }
@@ -127,7 +127,7 @@ final class DeckEditorViewModelTests: XCTestCase {
         let vm = DeckEditorViewModel(mode: .edit(seeded), store: store)
 
         vm.name = "Japanese"
-        try? vm.validateName()
+        vm.validateName()
 
         XCTAssertNil(vm.nameError, "Resubmitting an edited deck's own name must not be flagged as a duplicate")
     }
@@ -160,7 +160,7 @@ final class DeckEditorViewModelTests: XCTestCase {
         vm.name = "Japanese"
         vm.frontLanguage = .english
         vm.backLanguage = .japanese
-        try? vm.validateName()
+        vm.validateName()
 
         let snapshot = try vm.submit()
 
@@ -206,7 +206,7 @@ final class DeckEditorViewModelTests: XCTestCase {
         setClock(t2)
         let vm = DeckEditorViewModel(mode: .edit(seeded), store: store)
         vm.name = "日本語"
-        try? vm.validateName()
+        vm.validateName()
 
         let updated = try vm.submit()
 

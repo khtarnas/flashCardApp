@@ -1,28 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="1" systemVersion="11A491" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="false" userDefinedModelVersionIdentifier="">
-    <entity name="Deck" representedClassName="Deck" syncable="YES" codeGenerationType="class">
-        <attribute name="backLanguageRaw" optional="NO" attributeType="String"/>
-        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="frontLanguageRaw" optional="NO" attributeType="String"/>
-        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
-        <attribute name="name" optional="NO" attributeType="String"/>
-        <attribute name="updatedAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
-        <relationship name="cards" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Card" inverseName="decks" inverseEntity="Card"/>
-        <uniquenessConstraints>
-            <uniquenessConstraint>
-                <constraint value="id"/>
-            </uniquenessConstraint>
-        </uniquenessConstraints>
-    </entity>
-    <entity name="Card" representedClassName="Card" syncable="YES" codeGenerationType="class">
-        <attribute name="backText" optional="NO" attributeType="String" defaultValueString=""/>
-        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="frontText" optional="NO" attributeType="String" defaultValueString=""/>
-        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
-        <relationship name="decks" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Deck" inverseName="cards" inverseEntity="Deck"/>
+    <entity name="Item" representedClassName="Item" syncable="YES" codeGenerationType="class">
+        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <elements>
-        <element name="Deck" positionX="-63" positionY="-18" width="128" height="149"/>
-        <element name="Card" positionX="144" positionY="-18" width="128" height="104"/>
+        <element name="Item" positionX="-63" positionY="-18" width="128" height="44"/>
     </elements>
 </model>

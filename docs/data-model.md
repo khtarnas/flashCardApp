@@ -2,7 +2,7 @@
 
 ## Current State
 
-The Xcode template includes a single `Item` entity with a `timestamp` attribute. This will be replaced entirely.
+The Xcode template shipped a single `Item` entity with a `timestamp` attribute. The current model (v2) replaces it with `Deck` and `Card`. The original `Item` schema is preserved as v1 to establish a real versioned migration baseline for future schema changes.
 
 ## P0 Entities
 
@@ -15,6 +15,7 @@ The Xcode template includes a single `Item` entity with a `timestamp` attribute.
 | frontLanguage | String (Language enum raw value) | Required |
 | backLanguage | String (Language enum raw value) | Required |
 | createdAt | Date | Auto-set on creation |
+| updatedAt | Date | Auto-set on creation, bumped on edit (D024) |
 
 **Relationships:**
 - `cards`: Many-to-many with Card (via join entity or Core Data many-to-many)
