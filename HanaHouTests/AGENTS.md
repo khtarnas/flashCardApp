@@ -1,17 +1,22 @@
 # AGENTS.md — HanaHouTests/
 
-Unit tests for HanaHou using XCTest.
+Unit tests for HanaHou using XCTest (D021 — no swift-testing for P0).
 
 ## Current contents
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `HanaHouTests.swift` | Default test file (Xcode template — to be replaced) |
+| `HanaHouTests.swift` | Template placeholder test file. |
+| `Domain/` | Tests for `DeckNameValidator`, `DeckOrderingStrategy`, `DeckListComposer`. |
+| `Persistence/` | Tests for `InMemoryDeckStore` and `CoreDataDeckStore` (with an in-memory Core Data stack). |
+| `ViewModels/` | Tests for `DeckEditorViewModel` and `DeckListViewModel` against `InMemoryDeckStore`. |
+| `Views/` | Non-algorithmic smoke tests covering navigation root, bindable editor fields, All Cards defense-in-depth, and the Card-reachable-from-two-decks invariant. |
+| `Configuration/` | Build-setting / Info.plist assertions (e.g., portrait orientation lock). |
 
 ## Directives
 
-- Tests are written BEFORE implementation (TDD).
-- Test domain logic: data model operations, business rules, data retention.
-- Use in-memory Core Data stores for test isolation (`PersistenceController(inMemory: true)`).
-- Name test files to match the source file they test (e.g., `DeckTests.swift` for `Deck` logic).
-- When adding subdirectories, create an `AGENTS.md` in each.
+- TDD per D007: write tests first, then implementation.
+- Example-based tests only (D021).
+- XCTest only — no swift-testing, no third-party testing libraries (tech.md).
+- Use `InMemoryDeckStore` for view-model tests; use in-memory Core Data for `CoreDataDeckStore` tests.
+- Each test file's header lists the behaviors (B1–B11) and requirement IDs it validates.

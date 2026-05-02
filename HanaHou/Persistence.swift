@@ -2,62 +2,78 @@
 //  Persistence.swift
 //  HanaHou
 //
-//  Created by Tarnas, Hokua on 11/16/25.
+//  Feature: deck-management
 //
 
 import CoreData
 
+/// Owns the Core Data stack. Vends a `CoreDataDeckStore` as the public
+/// persistence entry point for deck management. Load failures are surfaced via
+/// `init(inMemory:) throws` rather than `fatalError`, so callers can decide
+/// how to handle them.
 struct PersistenceController {
-    static let shared = PersistenceController()
+
+    static let shared: PersistenceController = {
+        do {
+            return try PersistenceController()
+        } catch {
+            // The composition root (HanaHouApp) wraps `.shared` and is
+            // responsible for reporting a load failure to the user. This
+            // fallback keeps the shared-accessor API ergonomic while still
+            // surfacing the failure through the `loadError` property.
+            return PersistenceController(failedLoad: error)
+        }
+    }()
 
     @MainActor
     static let preview: PersistenceController = {
-        let result = PersistenceController(inMemory: true)
-        let viewContext = result.container.viewContext
-        for _ in 0..<10 {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
-        }
-        do {
-            try viewContext.save()
-        } catch {
-            // Replace this implementation with code to handle the error appropriately.
-            // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-            let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-        }
-        return result
+        // In-memory store for SwiftUI previews. Seed data will be added when
+        // Card/Deck CRUD is implemented in subsequent specs.
+        // swiftlint:disable:next force_try
+        return try! PersistenceController(inMemory: true)
     }()
 
     let container: NSPersistentContainer
 
-    init(inMemory: Bool = false) {
+    /// Populated when the persistent store fails to load. Callers that care
+    /// (for example, the composition root) can inspect this and surface an
+    /// error to the user instead of crashing.
+    let loadError: Error?
+
+    init(inMemory: Bool = false) throws {
         container = NSPersistentContainer(name: "HanaHou")
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
         }
-        // Enable lightweight migration for both in-memory and on-disk stores.
-        // Must be set before loadPersistentStores is called.
         if let description = container.persistentStoreDescriptions.first {
             description.shouldMigrateStoreAutomatically = true
             description.shouldInferMappingModelAutomatically = true
         }
-        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
-            if let error = error as NSError? {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
 
-                /*
-                 Typical reasons for an error here include:
-                 * The parent directory does not exist, cannot be created, or disallows writing.
-                 * The persistent store is not accessible, due to permissions or data protection when the device is locked.
-                 * The device is out of space.
-                 * The store could not be migrated to the current model version.
-                 Check the error message to determine what the actual problem was.
-                 */
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+        var capturedError: Error?
+        container.loadPersistentStores { _, error in
+            if let error = error {
+                capturedError = error
             }
-        })
+        }
+        if let capturedError = capturedError {
+            throw capturedError
+        }
+
         container.viewContext.automaticallyMergesChangesFromParent = true
+        self.loadError = nil
+    }
+
+    /// Fallback initializer used by `.shared` when the store fails to load.
+    /// Leaves the container unusable; callers should inspect `loadError`.
+    private init(failedLoad error: Error) {
+        container = NSPersistentContainer(name: "HanaHou")
+        self.loadError = error
+    }
+
+    /// Vends a `CoreDataDeckStore` backed by the container's `viewContext`.
+    /// The store is the public persistence API for deck management.
+    func makeDeckStore(clock: @escaping () -> Date = Date.init) -> CoreDataDeckStore {
+        CoreDataDeckStore(context: container.viewContext, clock: clock)
     }
 }

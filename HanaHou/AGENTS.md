@@ -1,21 +1,26 @@
 # AGENTS.md — HanaHou/ (App Source)
 
-Main application source code for HanaHou.
+Main application source for HanaHou.
 
 ## Current contents
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `HanaHouApp.swift` | App entry point, injects Core Data context |
-| `ContentView.swift` | Main view (currently Xcode template — to be replaced) |
-| `Persistence.swift` | Core Data stack setup (PersistenceController) |
-| `HanaHou.xcdatamodeld/` | Core Data model definition |
-| `Assets.xcassets/` | App icons and color assets |
+| `HanaHouApp.swift` | App entry point and composition root. Builds the Core Data stack, vends a `DeckStore`, picks the ordering strategy, and hosts `DeckManagementRootView`. |
+| `Persistence.swift` | Owns the Core Data stack (`PersistenceController`). Vends a `CoreDataDeckStore` via `makeDeckStore()`. Throws on load failure rather than calling `fatalError`. |
+| `HanaHou.xcdatamodeld/` | Core Data model (`Deck`, `Card` entities with a many-to-many relationship). Versioned; v2 is current. |
+| `Assets.xcassets/` | App icons and color assets. |
+| `Models/` | Plain Swift value types and enums used across the feature. |
+| `Domain/` | Pure domain services (validation, ordering, list composition) — no SwiftUI, no Core Data. |
+| `Persistence/` | `DeckStore` protocol plus its Core Data and in-memory implementations. |
+| `ViewModels/` | Main-actor `ObservableObject` view models bridging views to domain + persistence. |
+| `Views/` | SwiftUI view layer for deck management. |
 
 ## Directives
 
-- All source code goes in this directory or its subdirectories.
-- When adding subdirectories (e.g., `Models/`, `Views/`, `Services/`), create an `AGENTS.md` in each.
-- Follow SwiftUI patterns and conventions.
+- New source code goes in the appropriate subdirectory; add one when a new concern appears.
+- Every subdirectory must have an `AGENTS.md` (D005).
+- SwiftUI + Core Data only in P0 (tech.md). No third-party dependencies.
 - Core Data entities must match `docs/data-model.md`.
-- No network calls in P0 or P1.
+- No network calls in P0 or P1 (D002).
+- Views never touch Core Data directly — they go through view models, which go through `DeckStore`.
