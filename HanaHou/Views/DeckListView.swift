@@ -69,7 +69,10 @@ struct DeckListView: View {
 
         case .deck(let snapshot):
             Button {
-                onNavigate(.editDeck(snapshot))
+                // Tapping a user-deck row opens the deck's card list, not
+                // the deck editor. "Edit deck" is reachable from the card
+                // list's toolbar (approved card-management design decision).
+                onNavigate(.cardList(snapshot))
             } label: {
                 deckRowContent(snapshot)
             }

@@ -2,18 +2,22 @@
 //  HanaHouApp.swift
 //  HanaHou
 //
-//  Feature: deck-management (composition root)
+//  Feature: deck-management + card-management (composition root)
 //
 
 import SwiftUI
 
 @main
 struct HanaHouApp: App {
-    // Composition root: instantiate the persistence stack, vend a DeckStore,
-    // and pick the P0 ordering strategy. Swapping the store or strategy in a
-    // future priority is a one-line change right here.
+    // Composition root: instantiate the persistence stack, vend the deck
+    // and card stores (sharing the same `NSManagedObjectContext` so a deck
+    // deletion's save notification reaches both stores — that's what
+    // drives orphan handling in All Cards), and pick the P0 ordering
+    // strategies. Swapping a store or a strategy in a future priority is a
+    // one-line change right here.
     private let persistenceController = PersistenceController.shared
-    private let orderingStrategy: DeckOrderingStrategy = CreationDateAscendingOrdering()
+    private let deckOrderingStrategy: DeckOrderingStrategy = CreationDateAscendingOrdering()
+    private let cardOrderingStrategy: CardOrderingStrategy = CardCreationDateAscendingOrdering()
 
     var body: some Scene {
         WindowGroup {
@@ -21,8 +25,10 @@ struct HanaHouApp: App {
                 PersistenceLoadErrorView(error: loadError)
             } else {
                 DeckManagementRootView(
-                    store: persistenceController.makeDeckStore(),
-                    strategy: orderingStrategy
+                    deckStore: persistenceController.makeDeckStore(),
+                    cardStore: persistenceController.makeCardStore(),
+                    deckStrategy: deckOrderingStrategy,
+                    cardStrategy: cardOrderingStrategy
                 )
             }
         }

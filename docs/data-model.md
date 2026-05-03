@@ -2,7 +2,7 @@
 
 ## Current State
 
-The Xcode template shipped a single `Item` entity with a `timestamp` attribute. The current model (v2) replaces it with `Deck` and `Card`. The original `Item` schema is preserved as v1 to establish a real versioned migration baseline for future schema changes.
+The Xcode template shipped a single `Item` entity with a `timestamp` attribute. The current model (v3) has two entities — `Deck` and `Card` — with a many-to-many relationship. v1 (`Item`) is preserved for its versioned-migration baseline. v2 added `Deck`/`Card`. v3 added `Card.updatedAt` (per D030) to match the `Deck.updatedAt` pattern from D024.
 
 ## P0 Entities
 
@@ -28,6 +28,7 @@ The Xcode template shipped a single `Item` entity with a `timestamp` attribute. 
 | frontText | String | Required |
 | backText | String | Required |
 | createdAt | Date | Auto-set on creation |
+| updatedAt | Date | Auto-set on creation, bumped on edit (D024) |
 
 **Relationships:**
 - `decks`: Many-to-many with Deck

@@ -76,4 +76,14 @@ struct PersistenceController {
     func makeDeckStore(clock: @escaping () -> Date = Date.init) -> CoreDataDeckStore {
         CoreDataDeckStore(context: container.viewContext, clock: clock)
     }
+
+    /// Vends a `CoreDataCardStore` backed by the container's `viewContext` —
+    /// the SAME context used by `makeDeckStore`. Sharing the context is what
+    /// makes orphan handling work: a deck deletion's `NSManagedObjectContextDidSave`
+    /// notification reaches both stores' observers, and the card store
+    /// re-publishes so the All Cards view refreshes automatically
+    /// (per `.kiro/specs/card-management/design.md` §Composition Root).
+    func makeCardStore(clock: @escaping () -> Date = Date.init) -> CoreDataCardStore {
+        CoreDataCardStore(context: container.viewContext, clock: clock)
+    }
 }

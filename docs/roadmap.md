@@ -4,7 +4,7 @@
 
 | Tier | Theme | Status |
 |------|-------|--------|
-| P0 | Core flashcards (decks, cards, study mode) | 🔴 Not started |
+| P0 | Core flashcards (decks, cards, study mode) | 🟡 In progress |
 | P1 | Apple Pencil + study enhancements | 🔴 Not started |
 | P2 | SRS (spaced repetition) | 🔴 Not started |
 | P3 | AI integration | 🔴 Not started |
@@ -26,6 +26,12 @@
 - Study session summary screen with statistics
 - Collapsible sidebar navigation (NavigationSplitView)
 - Landscape orientation support
+- Homepage / welcome screen (landing page → Decks; later → Stats, AI practice)
+- Create cards from All Cards view (orphan creation)
+- Orphan section in All Cards (grouped at top, visually separated)
+- Language labels on card editor ("Front (Japanese)" / "Back (English)")
+- Search/filter for cards and decks
+- Deck deletion button in DeckEditorView (consistency with CardEditorView)
 
 ### P2 — SRS
 - StudyEvent entity (records per-card review outcomes)
@@ -37,6 +43,7 @@
 - Clean protocol/interface for AI backend
 - Support for remote API (OpenAI) or local model
 - AI-assisted card generation or study suggestions
+- Voice-to-flashcard: record audio message → AI agent generates flashcard(s)
 
 ### P4 — Tracking & Logging
 - Word count tracker ("you know at least X words")
