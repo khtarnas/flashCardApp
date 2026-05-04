@@ -6,13 +6,13 @@ This design describes how HanaHou implements the P0 study-mode feature specified
 
 Scope boundaries (per the requirements introduction):
 - In scope: `StudySessionViewModel` (the Study_Manager of Req 9), `StudyView`, `StudyCompletionView`, a `StudySession` value type for the ephemeral session state, a `SelfGrade` enum as the single point of change for the three self-grade categories, and the navigation wiring that adds study as a destination off the per-Deck Card list.
-- Out of scope: spaced repetition (P2), shuffle ordering (P1 — the existing `CardOrderingStrategy` protocol is reused so the strategy is swappable), study statistics and history (P1), any `StudyEvent` Core Data entity (P2 — study state is ephemeral in P0), studying from All Cards, mid-session editing, and Apple Pencil interactions during study.
+- Out of scope: spaced repetition (P2), shuffle ordering (P1 — the existing `CardOrderingStrategy` protocol is reused so the strategy is swappable), study statistics and history (P1), any `StudyEvent` Core Data entity (P1 — study state is ephemeral in P0 per D039), studying from All Cards (deferred to P1+, not permanently excluded — D041), mid-session editing, and Apple Pencil interactions during study.
 
 This design deliberately mirrors the card-management design in structure and conventions so the three P0 features compose cleanly. Where a pattern already exists for Decks/Cards, the study-side analogue reuses it. Study mode introduces **no new persistence abstractions**, **no new Core Data entities**, and **no new ordering protocol** — it consumes the existing `CardStore` and `CardOrderingStrategy` as dependencies.
 
 **Self-grade labels resolved.** The Open Question in the requirements (Req 4 AC 1 label set) is resolved to **Option A — "I know it", "I'm close", "No idea"** (confidence-oriented). This design treats the `SelfGrade` enum as the single point of change per D008 and Req 4 AC 6 / Req 9 AC 6 so a future "Test Mode" can swap in outcome-oriented labels without touching views, view models, or tests of unrelated behavior.
 
-Referenced decisions: D003 (many-to-many Card-Deck — study consumes `CardSnapshot.deckIds` read-only), D007 (per-feature TDD), D008 (three self-grade categories, designed to be mutable), D009 (sequential ordering for P0, swappable strategy), D010 (completion returns to home; summary screen is future), D013 (stack navigation), D014/D025/D028 (portrait lock, single point of change), D021 (example-based XCTest only — no PBT), D032 (CardOrderingStrategy is the card-side ordering protocol — reused, not duplicated). Referenced docs: `.kiro/specs/card-management/design.md`, `.kiro/specs/deck-management/design.md`, `docs/p0.md`, `docs/data-model.md`, `.kiro/steering/tech.md`.
+Referenced decisions: D003 (many-to-many Card-Deck — study consumes `CardSnapshot.deckIds` read-only), D007 (per-feature TDD), D008 (three self-grade categories, designed to be mutable), D009 (sequential ordering for P0, swappable strategy), D010 (completion returns to home; summary screen is future), D013 (stack navigation), D014/D025/D028 (portrait lock, single point of change), D021 (example-based XCTest only — no PBT), D032 (CardOrderingStrategy is the card-side ordering protocol — reused, not duplicated), D036 (self-grade label set resolved to confidence-oriented Option A), D039 (`StudyEvent` persistence moves from P2 to P1; P0 remains ephemeral), D041 (study from All Cards is deferred from P0, not permanently excluded). Referenced docs: `.kiro/specs/card-management/design.md`, `.kiro/specs/deck-management/design.md`, `docs/p0.md`, `docs/data-model.md`, `.kiro/steering/tech.md`.
 
 ## Architecture
 
@@ -127,7 +127,7 @@ enum SelfGrade: String, Equatable, CaseIterable {
 
 Design notes:
 - **Case names are semantic, not display strings.** `.know`/`.close`/`.noIdea` describe the concept. `label` is the display string. Renaming `label` does not break any caller. Renaming a case is a compile-time-checked rename through the whole codebase. This is the "single point of change" shape required by Req 4 AC 6 and Req 9 AC 6.
-- **`String` raw value** is present for future-proofing: if P2 persists a `StudyEvent`, the raw value is a stable on-disk identifier independent of the display label. P0 does not persist anything, but choosing a stable raw representation now costs nothing.
+- **`String` raw value** is present for future-proofing: if P1 persists a `StudyEvent`, the raw value is a stable on-disk identifier independent of the display label. P0 does not persist anything, but choosing a stable raw representation now costs nothing.
 - **`CaseIterable`** is required by Req 9 AC 6 so the view can render `SelfGrade.allCases` — no hand-kept parallel list.
 - **`Equatable`** is required to assert on `StudySession.grades[cardId] == .close` in tests (Req 10 AC 3.7).
 - **Exactly three cases.** Test 10 AC 3.12 pins this by asserting `SelfGrade.allCases.count == 3` and that each `label` is distinct and non-empty.
@@ -422,7 +422,7 @@ ToolbarItem(placement: .topBarTrailing) {
 
 Note on `.disabled(items.isEmpty)`: the requirements explicitly allow starting a session for an empty deck and handle it via `.emptyDeck` (Req 1 AC 9 / Req 1 AC 10). The UI-level disable is therefore optional — I am including it as a usability nicety, but the `StudySessionViewModel` and `StudyView` must remain correct for an empty deck regardless, because the deck can change between the Card list's read and the Study view's read. Tests exercise the empty-deck path at the view-model layer, which is the source of truth.
 
-`AllCardsView` gets **no** study affordance (Req 8 AC 2 — "SHALL NOT be reachable from the All Cards view in P0"). No change to `AllCardsView`.
+`AllCardsView` gets **no** study affordance (Req 8 AC 2 — "SHALL NOT be reachable from the All Cards view in P0"). No change to `AllCardsView`. This is a P0-scope boundary, not a permanent product decision — study from All Cards is deferred to P1+ per D041.
 
 ### Orientation lock
 
@@ -641,11 +641,11 @@ Decisions intentionally deferred to implementation or to a future spec:
 
 ## Decisions to Record in `docs/decisions.md`
 
-This design surfaces the following decisions that should be ratified and added to `docs/decisions.md` after the design is approved. **This document does not edit `docs/decisions.md` directly** — the user ratifies and records them.
+This section enumerates the decisions surfaced by this design. **Three of these — D036, D039, and D041 — have been ratified and added to `docs/decisions.md`.** The remaining items are design-level clarifications that are captured by the design document itself and did not warrant a separate decisions-log entry.
 
-1. **Self-grade labels resolved to Option A ("I know it" / "I'm close" / "No idea").** Confidence-oriented framing was chosen over outcome-oriented framing for P0 study mode. A future "Test Mode" can swap in outcome-oriented labels via the `SelfGrade.label` property — the enum remains the single point of change per D008.
+1. **Self-grade labels resolved to Option A ("I know it" / "I'm close" / "No idea").** Confidence-oriented framing was chosen over outcome-oriented framing for P0 study mode. A future "Test Mode" can swap in outcome-oriented labels via the `SelfGrade.label` property — the enum remains the single point of change per D008. **Recorded as D036.**
 2. **`StudySessionViewModel` depends on protocols, not concrete types.** The view model takes `CardStore` and `CardOrderingStrategy` protocols, never `CoreDataCardStore` or a concrete strategy. This is the testability seam that lets `StudySessionViewModelTests` run against `InMemoryCardStore` with no Core Data stack.
 3. **Session ordering uses a snapshot taken at session start; mid-session mutations to the source Deck are ignored.** The `StudySession.cards` array is `let`; `StudySessionViewModel` does not subscribe to `CardStore.changes`. This is the structural guarantee behind Req 1 AC 8.
-4. **`StudyEvent` persistence is deferred to P2.** P0 study sessions are entirely in-memory; no Core Data entity is added. Grades are discarded on exit or completion. When P2 introduces `StudyEvent`, it will be additive: the view model can optionally write to a new `StudyEventStore` without touching the state machine.
-5. **`SelfGrade` gets a `String` raw value even though P0 does not persist it.** The stable on-disk identifier is separate from the display label, so P2 persistence and future label changes can happen independently.
-6. **Study mode is reachable from the per-Deck Card list only, not from All Cards (P0).** Matches Req 8 AC 2. Starting a study session for "all cards regardless of deck" is a P1+ feature that would need a new `CardStore` query (e.g., `fetchAll()` + some scope concept) and a different UX entry point.
+4. **`StudyEvent` persistence is deferred to P1.** P0 study sessions are entirely in-memory; no Core Data entity is added. Grades are discarded on exit or completion. When P1 introduces `StudyEvent`, it will be additive: the view model can optionally write to a new `StudyEventStore` without touching the state machine. SRS in P2 will consume that P1 data. **Recorded as D039.**
+5. **`SelfGrade` gets a `String` raw value even though P0 does not persist it.** The stable on-disk identifier is separate from the display label, so P1 persistence (per D039) and future label changes can happen independently.
+6. **Study mode is reachable from the per-Deck Card list only in P0 — deferred, not excluded.** Matches Req 8 AC 2. Starting a study session for "all cards regardless of deck" is a P1+ feature that will need a new scope concept and a different UX entry point. **Recorded as D041.**

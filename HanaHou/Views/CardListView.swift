@@ -54,6 +54,15 @@ struct CardListView: View {
                 }
                 .accessibilityIdentifier("NewCardButton")
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    onNavigate(.study(deck))
+                } label: {
+                    Label("Study", systemImage: "play.fill")
+                }
+                .accessibilityIdentifier("StudyButton")
+                .disabled(viewModel.items.isEmpty)
+            }
             ToolbarItem(placement: .topBarLeading) {
                 Button {
                     onNavigate(.editDeck(deck))

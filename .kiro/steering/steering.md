@@ -101,7 +101,7 @@ For each feature, follow three phases in order:
 - Docs-only changes can push directly to `main` — no PR needed.
 - Code changes go through PRs with CodeRabbit auto-review.
 - PR review happens in the GitHub UI.
-- **CodeRabbit evaluation (trial expires May 16, 2026):** Run both CodeRabbit and the manual reviewer prompt (`#prompt-templates`) on every PR. Compare findings and record differences in the session log. Decide whether to keep CodeRabbit after the trial based on signal-to-noise ratio and coverage gaps.
+- **CodeRabbit evaluation (trial expires May 16, 2026):** Run both CodeRabbit and the manual reviewer prompt (`#prompt-templates`) on every PR's initial review — before any fixes. Compare findings and record differences in the session log. Subsequent fix commits don't need dual review. Decide whether to keep CodeRabbit after the trial based on signal-to-noise ratio and coverage gaps.
 
 ### Prompting guidelines (for Spec mode and agent interactions)
 

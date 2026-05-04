@@ -39,6 +39,13 @@ final class CardListViewModel: ObservableObject {
         reload()
     }
 
+    // Explicit `nonisolated deinit` sidesteps the Swift 6 isolated-deinit
+    // path that can trap (libmalloc "pointer being freed was not allocated")
+    // when a `@MainActor` view model is deallocated synchronously from the
+    // main thread under Xcode 26 / iOS 26. The view model holds no
+    // resources that need main-actor cleanup.
+    nonisolated deinit {}
+
     /// Explicit reload. Called from init and on every `store.changes` signal.
     /// Useful for tests that want to avoid the runloop hop.
     func reload() {

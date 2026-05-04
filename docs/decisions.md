@@ -6,6 +6,21 @@ Significant decisions with rationale. Newest first. Size: mini | small | medium 
 
 ---
 
+### D041: Studying from the All Cards view is deferred from P0, not permanently excluded [mini]
+**Date:** 2026-05-02
+**Decision:** P0 reaches study mode only from the per-Deck Card list (Req 8 AC 2 of `study-mode/requirements.md`). Studying across all cards — or across a user-chosen scope larger than one deck — is a future feature that will need a new scope concept and a different UX entry point. Logged here so the P0 boundary is not read as a forever-no.
+**Rationale:** The P0 study flow is scoped to a single Deck to keep the state model small and the UX linear. Cross-deck study is a natural extension once the per-Deck flow is proven and once there is a scope concept (e.g., selected decks, filtered subset) to anchor it to.
+
+### D039: StudyEvent persistence moves from P2 to P1 [medium]
+**Date:** 2026-05-02
+**Decision:** Roadmap restructured. `StudyEvent` (per-card review outcome records) is now P1, alongside the study session summary screen. SRS (spaced repetition scheduling) remains in P2 and will consume the P1 `StudyEvent` data when it lands.
+**Rationale:** Recording review outcomes is low-cost incremental work once Study Mode (P0) ships, and having that data in P1 unlocks the summary screen and enables SRS algorithm iteration in P2 without a data backfill. The P0 architecture is unaffected — study state remains ephemeral in P0 and no Core Data entity is added; the change is purely about which future priority owns `StudyEvent`.
+
+### D036: Self-grade labels resolved to Option A ("I know it" / "I'm close" / "No idea") [small]
+**Date:** 2026-05-02
+**Decision:** Confidence-oriented framing chosen over outcome-oriented for P0 study mode. `SelfGrade` is the single point of change per D008 — case names are semantic (`.know`, `.close`, `.noIdea`), display strings live on a single `label` property, and a `String` raw value is included for stable future persistence. A future "Test Mode" can swap in outcome-oriented labels ("Got it" / "Close" / "Missed") without touching views, view models, or unrelated tests.
+**Rationale:** Confidence framing matches how a solo learner self-reports mid-session (what they knew) better than outcome framing (what they got right). Keeping the raw value and single label property means the decision is cheap to revisit later.
+
 ### D035: CardDraft carries text only; deck membership is a separate argument to CardStore.create [mini]
 **Date:** 2026-05-02
 **Decision:** `CardDraft` has only `frontText` and `backText`. Initial deck membership is a separate `deckIds: Set<UUID>` parameter on `CardStore.create(frontText:backText:deckIds:)`. The P0 editor passes a singleton set from the per-deck flow; a future multi-deck editor can pass any set without changing the draft value type.

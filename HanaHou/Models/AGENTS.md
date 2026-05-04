@@ -16,6 +16,8 @@ Plain Swift value types and enums shared across deck and card management. No Swi
 | `CardDraft.swift` | Mutable value carrying a user-editable front/back pair from the card editor. Deck membership is passed separately to `CardStore.create` (D035). |
 | `CardTextError.swift` | `.missingFront`, `.missingBack` — distinct cases so the editor can surface which side is invalid. |
 | `CardRowItem.swift` | Display-only row model used by `CardListView` and `AllCardsView`. Carries `isOrphan` so orphan rows can be visually distinguished. |
+| `SelfGrade.swift` | Three-category self-grade enum for study mode (D008, D036). Semantic case names (`.know`, `.close`, `.noIdea`); `label` is the single-source display string ("I know it" / "I'm close" / "No idea"); `String` raw value is reserved for future P1 `StudyEvent` persistence (D039). |
+| `StudySession.swift` | Ephemeral in-memory state value for a running study session (Req 9 of study-mode). `StudySession` struct + nested `Phase` enum (`.frontRevealed`/`.backRevealed`/`.completed`/`.emptyDeck`) + `CurrentCardView` projection consumed by the study view. Not persisted — study state is discarded on exit/completion. |
 
 ## Directives
 

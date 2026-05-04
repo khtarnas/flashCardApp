@@ -4,19 +4,19 @@
 
 This document specifies the P0 requirements for study mode in HanaHou, a personal iPadOS flashcard app. Study mode is the third and final P0 feature: with deck management and card management already implemented, the user can now start a study session from a Deck, flip Cards front-to-back, self-grade each Card using three categories (per D008), and advance sequentially through the Deck (per D009) until the session is complete (per D010).
 
-Scope boundaries. In scope: starting a session from a Deck, presenting one Card at a time (front first), flipping to reveal the back, self-grading with three categories, advancing to the next Card, sequential ordering for P0, and a completion screen that returns the user to the home screen. Out of scope: spaced repetition (P2), shuffle ordering (P1 — the ordering-strategy protocol defined here must be swappable to support it), study statistics and history (P1), `StudyEvent` persistence (P2 — study state is ephemeral/in-memory for P0), studying from the All Cards view, Apple Pencil interactions during study (P1+), and mid-session editing of Cards.
+Scope boundaries. In scope: starting a session from a Deck, presenting one Card at a time (front first), flipping to reveal the back, self-grading with three categories, advancing to the next Card, sequential ordering for P0, and a completion screen that returns the user to the home screen. Out of scope: spaced repetition (P2), shuffle ordering (P1 — the ordering-strategy protocol defined here must be swappable to support it), study statistics and history (P1), `StudyEvent` persistence (P1 per D039 — study state is ephemeral/in-memory for P0), studying from the All Cards view (deferred to P1+ per D041, not permanently excluded), Apple Pencil interactions during study (P1+), and mid-session editing of Cards.
 
-References: `docs/p0.md` for the P0 scope (study mode is the last remaining item); `docs/decisions.md` for D008 (three self-grading categories, designed to be mutable), D009 (sequential ordering for P0, swappable strategy), D010 (study completion returns to home screen in P0; summary screen is a future feature), D021 (example-based XCTest in P0, not property-based); `.kiro/specs/deck-management/design.md` and `.kiro/specs/card-management/design.md` for the four-layer architecture (Models → Domain → Persistence → ViewModels → Views), the value-types-across-boundaries convention, the `DeckSnapshot` and `CardSnapshot` types, the `CardStore` protocol, and the `CardOrderingStrategy` protocol this spec will reuse; `docs/data-model.md` for the current Card entity (no `StudyEvent` yet — that's P2).
+References: `docs/p0.md` for the P0 scope (study mode is the last remaining item); `docs/decisions.md` for D008 (three self-grading categories, designed to be mutable), D009 (sequential ordering for P0, swappable strategy), D010 (study completion returns to home screen in P0; summary screen is a future feature), D021 (example-based XCTest in P0, not property-based), D036 (self-grade label set resolved to confidence-oriented Option A), D039 (`StudyEvent` persistence moves from P2 to P1; P0 remains ephemeral), D041 (study from All Cards is deferred from P0, not permanently excluded); `.kiro/specs/deck-management/design.md` and `.kiro/specs/card-management/design.md` for the four-layer architecture (Models → Domain → Persistence → ViewModels → Views), the value-types-across-boundaries convention, the `DeckSnapshot` and `CardSnapshot` types, the `CardStore` protocol, and the `CardOrderingStrategy` protocol this spec will reuse; `docs/data-model.md` for the current Card entity (no `StudyEvent` yet — that's a P1 concern per D039).
 
 ### Open question surfaced by this spec
 
-**Self-grading category labels (referenced in Req 4 AC 1).** D008 fixes the number of categories at three and requires that they be mutable, but the exact labels are TBD. Three candidate label sets are presented below so the design phase can choose one (or propose an alternative) without changing the shape of this spec:
+**Self-grading category labels (referenced in Req 4 AC 1). RESOLVED — D036: Option A.** D008 fixes the number of categories at three and requires that they be mutable, but the exact labels were TBD in this document. Three candidate label sets were presented:
 
-- **A. Confidence-oriented (the original D008 wording):** "I know it", "I'm close", "No idea".
-- **B. Outcome-oriented:** "Got it", "Close", "Missed".
+- **A. Confidence-oriented (the original D008 wording):** "I know it", "I'm close", "No idea". **← chosen, per D036.**
+- **B. Outcome-oriented:** "Got it", "Close", "Missed". (Retained for a future "Test Mode".)
 - **C. Terse/neutral:** "Know", "Maybe", "No".
 
-Whichever set is chosen, Req 4 and Req 9 remain correct: exactly three categories exist, they are modeled as a finite enum, the enum is the single point of change if the labels are renamed or extended, and rendering uses the enum's human-readable label from one place. **This question must be resolved before the test-writing phase for Req 4 and Req 9.**
+Per D036, Option A is the P0 label set. Req 4 and Req 9 remain correct as written: exactly three categories exist, they are modeled as a finite enum, the enum is the single point of change if the labels are renamed or extended, and rendering uses the enum's human-readable label from one place.
 
 ## Glossary
 
@@ -27,7 +27,7 @@ Whichever set is chosen, Req 4 and Req 9 remain correct: exactly three categorie
 - **Study_Manager**: The logical component that coordinates a Study_Session's lifecycle (start, flip, grade, advance, complete) and exposes state to the study view. Concretely this corresponds to a study-mode view model in the layered architecture.
 - **Study_View**: The UI surface that displays the current Card's front, allows the user to flip to the back, displays the three Self_Grade options after the flip, and advances to the next Card on grade selection.
 - **Study_Completion_View**: The UI surface displayed after every Card in the Study_Session has been graded. In P0 this view offers a single action to return to the home screen (per D010). No statistics are displayed.
-- **Self_Grade**: A value from a finite set of exactly three categories (per D008) the user assigns to a Card after revealing the back. The three categories are modeled as a Swift enum with a human-readable label derived from the enum — see the Open question above for the candidate label sets. The enum is the single point of change so a future priority can rename, add, or remove categories (per D008's "designed to be mutable").
+- **Self_Grade**: A value from a finite set of exactly three categories (per D008) the user assigns to a Card after revealing the back. The three categories are modeled as a Swift enum with a human-readable label derived from the enum. Per D036 the P0 labels are confidence-oriented ("I know it", "I'm close", "No idea"); the enum is the single point of change so a future priority can rename, add, or remove categories (per D008's "designed to be mutable").
 - **Card_Ordering_Strategy**: The existing `CardOrderingStrategy` protocol defined in `HanaHou/Domain/CardOrderingStrategy.swift` and `.kiro/specs/card-management/design.md`. Study mode reuses this protocol (rather than introducing a new one) so that sequential ordering in P0 and shuffle ordering in P1 share a single abstraction. The P0 default for study mode is the existing `CardCreationDateAscendingOrdering` — the same sequential order users see in the Card list.
 - **Card_Position**: The zero-based index of the currently displayed Card within the Study_Session's ordered Card sequence. A Study_Session with N Cards has valid Card_Position values 0 through N−1.
 - **Front_Revealed_State**: The phase of the currently displayed Card in which only the Card's front text is visible and the Card has not yet been graded.
@@ -80,7 +80,7 @@ Whichever set is chosen, Req 4 and Req 9 remain correct: exactly three categorie
 
 ### Requirement 4: Self-Grade the Current Card
 
-**User Story:** As a user, I want to self-grade how well I recalled the current Card using three distinct categories, so that I can reflect on my performance and lay the groundwork for future spaced repetition (P2).
+**User Story:** As a user, I want to self-grade how well I recalled the current Card using three distinct categories, so that I can reflect on my performance and lay the groundwork for future spaced repetition (P2, built on P1 `StudyEvent` data per D039).
 
 #### Acceptance Criteria
 
@@ -144,7 +144,7 @@ Whichever set is chosen, Req 4 and Req 9 remain correct: exactly three categorie
 #### Acceptance Criteria
 
 1. THE Study_Manager SHALL represent a Study_Session as an in-memory value type or reference type that contains: the source Deck's id; the ordered sequence of Card_Snapshot values loaded at session start; the current Card_Position; the Study_Session's phase (Front_Revealed_State, Back_Revealed_State, Completed_State, or Empty_Deck_State); and a mapping from each graded Card's id to its recorded Self_Grade value.
-2. THE Study_Manager SHALL NOT introduce any new Core Data entities in P0 (per `docs/p0.md` — `StudyEvent` is a P2 concern).
+2. THE Study_Manager SHALL NOT introduce any new Core Data entities in P0 (per `docs/p0.md` — `StudyEvent` is a P1 concern per D039).
 3. THE Study_Manager SHALL obtain the Study_Session's initial ordered Card sequence by calling the existing `CardStore.fetchInDeck(deckId:)` operation defined in `.kiro/specs/card-management/design.md` and then applying the injected Card_Ordering_Strategy.
 4. THE Study_Manager SHALL depend on the `CardStore` protocol only — not on any concrete `CardStore` implementation — so that view-model tests can drive the Study_Manager with the existing in-memory `CardStore` test double.
 5. THE Study_Manager SHALL depend on the `CardOrderingStrategy` protocol only — not on any concrete strategy implementation — so that tests can substitute a stub strategy to assert on the order passed through to the view.
