@@ -2,6 +2,8 @@
 
 Personal knowledge journal — concepts I've learned while building HanaHou. Newest first. Only the user adds entries here; the agent must have explicit permission to add an entry.
 
+## Learnings
+
 ---
 
 ### 2026-05-03: CodeRabbit for automated PR review

@@ -48,10 +48,13 @@ struct DeckListView: View {
             Button("Delete", role: .destructive) {
                 do {
                     try viewModel.delete(item: .deck(snapshot))
+                    deckPendingDelete = nil
                 } catch {
                     deleteError = error
+                    // Leave `deckPendingDelete` set so the confirmation
+                    // dialog stays available as a retry affordance once
+                    // the user dismisses the error alert.
                 }
-                deckPendingDelete = nil
             }
             Button("Cancel", role: .cancel) { deckPendingDelete = nil }
         } message: { _ in

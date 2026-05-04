@@ -75,10 +75,13 @@ struct CardListView: View {
             Button("Delete", role: .destructive) {
                 do {
                     try viewModel.delete(id: row.id)
+                    rowPendingDelete = nil
                 } catch {
                     deleteError = error
+                    // Leave `rowPendingDelete` set so the confirmation
+                    // dialog stays available as a retry affordance once
+                    // the user dismisses the error alert.
                 }
-                rowPendingDelete = nil
             }
             Button("Cancel", role: .cancel) { rowPendingDelete = nil }
         } message: { _ in
