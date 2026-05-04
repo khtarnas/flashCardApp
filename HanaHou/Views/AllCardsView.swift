@@ -17,6 +17,7 @@ struct AllCardsView: View {
     let onNavigate: (DeckManagementRoute) -> Void
 
     @State private var rowPendingDelete: CardRowItem?
+    @State private var deleteError: Error?
 
     var body: some View {
         List {
@@ -53,12 +54,40 @@ struct AllCardsView: View {
             presenting: rowPendingDelete
         ) { row in
             Button("Delete", role: .destructive) {
-                try? viewModel.delete(id: row.id)
+                do {
+                    try viewModel.delete(id: row.id)
+                } catch {
+                    deleteError = error
+                }
                 rowPendingDelete = nil
             }
             Button("Cancel", role: .cancel) { rowPendingDelete = nil }
         } message: { _ in
             Text("This can't be undone.")
+        }
+        .alert(
+            "Couldn't load cards",
+            isPresented: Binding(
+                get: { viewModel.loadError != nil },
+                set: { if !$0 { viewModel.acknowledgeLoadError() } }
+            ),
+            presenting: viewModel.loadError
+        ) { _ in
+            Button("OK", role: .cancel) { viewModel.acknowledgeLoadError() }
+        } message: { error in
+            Text(error.localizedDescription)
+        }
+        .alert(
+            "Couldn't delete card",
+            isPresented: Binding(
+                get: { deleteError != nil },
+                set: { if !$0 { deleteError = nil } }
+            ),
+            presenting: deleteError
+        ) { _ in
+            Button("OK", role: .cancel) { deleteError = nil }
+        } message: { error in
+            Text(error.localizedDescription)
         }
     }
 

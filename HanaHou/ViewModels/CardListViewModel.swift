@@ -17,6 +17,7 @@ import Combine
 final class CardListViewModel: ObservableObject {
 
     @Published private(set) var items: [CardRowItem] = []
+    @Published var loadError: Error?
 
     let deckId: UUID
 
@@ -41,17 +42,31 @@ final class CardListViewModel: ObservableObject {
     /// Explicit reload. Called from init and on every `store.changes` signal.
     /// Useful for tests that want to avoid the runloop hop.
     func reload() {
-        let cards = (try? store.fetchInDeck(deckId: deckId)) ?? []
-        let ordered = strategy.order(cards)
-        snapshotsById = Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, $0) })
-        items = ordered.map { snapshot in
-            CardRowItem(
-                id: snapshot.id,
-                frontText: snapshot.frontText,
-                backText: snapshot.backText,
-                isOrphan: snapshot.deckIds.isEmpty
-            )
+        do {
+            let cards = try store.fetchInDeck(deckId: deckId)
+            let ordered = strategy.order(cards)
+            snapshotsById = Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, $0) })
+            items = ordered.map { snapshot in
+                CardRowItem(
+                    id: snapshot.id,
+                    frontText: snapshot.frontText,
+                    backText: snapshot.backText,
+                    isOrphan: snapshot.deckIds.isEmpty
+                )
+            }
+            loadError = nil
+        } catch {
+            // Preserve any items already shown rather than blanking the list
+            // on a transient fetch failure — the view can still render stale
+            // rows while `loadError` is surfaced in an alert.
+            loadError = error
         }
+    }
+
+    /// Clears a previously-surfaced `loadError`. Called by the view after the
+    /// user dismisses the error alert.
+    func acknowledgeLoadError() {
+        loadError = nil
     }
 
     /// Resolves a tapped `CardRowItem.id` back to its underlying `CardSnapshot`

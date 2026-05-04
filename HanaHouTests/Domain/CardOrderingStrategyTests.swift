@@ -15,7 +15,7 @@ final class CardOrderingStrategyTests: XCTestCase {
     // MARK: - Helpers
 
     private func card(
-        id: UUID = UUID(),
+        id: UUID,
         createdAt: Date,
         updatedAt: Date? = nil,
         deckIds: Set<UUID> = []
@@ -43,7 +43,10 @@ final class CardOrderingStrategyTests: XCTestCase {
 
     func test_order_singleElementInput_returnsSingleElement() {
         let strategy = CardCreationDateAscendingOrdering()
-        let only = card(createdAt: Date(timeIntervalSince1970: 1_000))
+        let only = card(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            createdAt: Date(timeIntervalSince1970: 1_000)
+        )
 
         let result = strategy.order([only])
 
@@ -52,10 +55,21 @@ final class CardOrderingStrategyTests: XCTestCase {
 
     func test_order_sortsByCreatedAtAscending_oldestFirst() {
         let strategy = CardCreationDateAscendingOrdering()
-        // 2024-01-01, 2024-01-15, 2024-02-01 as deterministic timestamps
-        let c1 = card(createdAt: Date(timeIntervalSince1970: 1_704_067_200)) // 2024-01-01
-        let c2 = card(createdAt: Date(timeIntervalSince1970: 1_705_276_800)) // 2024-01-15
-        let c3 = card(createdAt: Date(timeIntervalSince1970: 1_706_745_600)) // 2024-02-01
+        // Fixed ids so the test is order-by-createdAt only; tiebreaker
+        // behavior is covered by `test_order_idTiebreaker_…`.
+        // Timestamps: 2024-01-01, 2024-01-15, 2024-02-01.
+        let c1 = card(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            createdAt: Date(timeIntervalSince1970: 1_704_067_200)
+        )
+        let c2 = card(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            createdAt: Date(timeIntervalSince1970: 1_705_276_800)
+        )
+        let c3 = card(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            createdAt: Date(timeIntervalSince1970: 1_706_745_600)
+        )
 
         // Pass in shuffled order to confirm the sort actually runs
         let result = strategy.order([c2, c3, c1])
@@ -65,9 +79,18 @@ final class CardOrderingStrategyTests: XCTestCase {
 
     func test_order_preservesOrderWhenAlreadySorted() {
         let strategy = CardCreationDateAscendingOrdering()
-        let c1 = card(createdAt: Date(timeIntervalSince1970: 1_000))
-        let c2 = card(createdAt: Date(timeIntervalSince1970: 2_000))
-        let c3 = card(createdAt: Date(timeIntervalSince1970: 3_000))
+        let c1 = card(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            createdAt: Date(timeIntervalSince1970: 1_000)
+        )
+        let c2 = card(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            createdAt: Date(timeIntervalSince1970: 2_000)
+        )
+        let c3 = card(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            createdAt: Date(timeIntervalSince1970: 3_000)
+        )
 
         let result = strategy.order([c1, c2, c3])
 

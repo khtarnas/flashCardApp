@@ -2,6 +2,8 @@
 
 Significant decisions with rationale. Newest first. Size: mini | small | medium | large | huge.
 
+## Decisions
+
 ---
 
 ### D035: CardDraft carries text only; deck membership is a separate argument to CardStore.create [mini]

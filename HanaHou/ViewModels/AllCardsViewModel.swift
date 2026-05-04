@@ -20,6 +20,7 @@ import Combine
 final class AllCardsViewModel: ObservableObject {
 
     @Published private(set) var items: [CardRowItem] = []
+    @Published var loadError: Error?
 
     private let store: CardStore
     private let strategy: CardOrderingStrategy
@@ -40,17 +41,31 @@ final class AllCardsViewModel: ObservableObject {
 
     /// Explicit reload. Called from init and on every `store.changes` signal.
     func reload() {
-        let cards = (try? store.fetchAll()) ?? []
-        let ordered = strategy.order(cards)
-        snapshotsById = Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, $0) })
-        items = ordered.map { snapshot in
-            CardRowItem(
-                id: snapshot.id,
-                frontText: snapshot.frontText,
-                backText: snapshot.backText,
-                isOrphan: snapshot.deckIds.isEmpty
-            )
+        do {
+            let cards = try store.fetchAll()
+            let ordered = strategy.order(cards)
+            snapshotsById = Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, $0) })
+            items = ordered.map { snapshot in
+                CardRowItem(
+                    id: snapshot.id,
+                    frontText: snapshot.frontText,
+                    backText: snapshot.backText,
+                    isOrphan: snapshot.deckIds.isEmpty
+                )
+            }
+            loadError = nil
+        } catch {
+            // Preserve already-displayed items on a transient fetch failure —
+            // the view surfaces `loadError` in an alert without blanking the
+            // list.
+            loadError = error
         }
+    }
+
+    /// Clears a previously-surfaced `loadError`. Called by the view after the
+    /// user dismisses the error alert.
+    func acknowledgeLoadError() {
+        loadError = nil
     }
 
     /// Resolves a tapped `CardRowItem.id` back to its underlying `CardSnapshot`

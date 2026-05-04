@@ -12,6 +12,7 @@ struct DeckListView: View {
     let onNavigate: (DeckManagementRoute) -> Void
 
     @State private var deckPendingDelete: DeckSnapshot?
+    @State private var deleteError: Error?
 
     var body: some View {
         List {
@@ -45,12 +46,40 @@ struct DeckListView: View {
             presenting: deckPendingDelete
         ) { snapshot in
             Button("Delete", role: .destructive) {
-                try? viewModel.delete(item: .deck(snapshot))
+                do {
+                    try viewModel.delete(item: .deck(snapshot))
+                } catch {
+                    deleteError = error
+                }
                 deckPendingDelete = nil
             }
             Button("Cancel", role: .cancel) { deckPendingDelete = nil }
         } message: { _ in
             Text("Cards in this deck will be kept and remain visible in All Cards.")
+        }
+        .alert(
+            "Couldn't load decks",
+            isPresented: Binding(
+                get: { viewModel.loadError != nil },
+                set: { if !$0 { viewModel.acknowledgeLoadError() } }
+            ),
+            presenting: viewModel.loadError
+        ) { _ in
+            Button("OK", role: .cancel) { viewModel.acknowledgeLoadError() }
+        } message: { error in
+            Text(error.localizedDescription)
+        }
+        .alert(
+            "Couldn't delete deck",
+            isPresented: Binding(
+                get: { deleteError != nil },
+                set: { if !$0 { deleteError = nil } }
+            ),
+            presenting: deleteError
+        ) { _ in
+            Button("OK", role: .cancel) { deleteError = nil }
+        } message: { error in
+            Text(error.localizedDescription)
         }
     }
 
