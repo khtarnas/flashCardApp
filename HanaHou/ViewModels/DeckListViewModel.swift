@@ -12,6 +12,7 @@ import Combine
 final class DeckListViewModel: ObservableObject {
 
     @Published private(set) var items: [DeckListItem] = []
+    @Published var loadError: Error?
 
     private let store: DeckStore
     private let strategy: DeckOrderingStrategy
@@ -31,8 +32,22 @@ final class DeckListViewModel: ObservableObject {
 
     /// Explicit reload. Useful for tests; also called from init and on store changes.
     func reload() {
-        let userDecks = (try? store.fetchAll()) ?? []
-        items = DeckListComposer.compose(userDecks: userDecks, strategy: strategy)
+        do {
+            let userDecks = try store.fetchAll()
+            items = DeckListComposer.compose(userDecks: userDecks, strategy: strategy)
+            loadError = nil
+        } catch {
+            // Preserve already-displayed items on a transient fetch failure —
+            // the view surfaces `loadError` in an alert without blanking the
+            // list. Mirrors the pattern in `CardListViewModel` / `AllCardsViewModel`.
+            loadError = error
+        }
+    }
+
+    /// Clears a previously-surfaced `loadError`. Called by the view after the
+    /// user dismisses the error alert.
+    func acknowledgeLoadError() {
+        loadError = nil
     }
 
     /// Defense-in-depth guard for programmatic callers. Views never surface

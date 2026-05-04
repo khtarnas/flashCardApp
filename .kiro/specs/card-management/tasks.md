@@ -1,0 +1,249 @@
+# Implementation Plan: Card Management (P0)
+
+## Overview
+
+Implementation plan for the P0 card management feature. Tasks are TDD-ordered per D007 and D021: each production-code task is preceded by the example-based XCTest that describes its behavior. Tests are written first and made to fail, then the implementation is added to make them pass — matching the pattern in `.kiro/specs/deck-management/tasks.md`.
+
+Traces to:
+- `.kiro/specs/card-management/requirements.md` — requirements (Req IDs)
+- `.kiro/specs/card-management/design.md` — architecture, behaviors C1–C12 and B11-C, type signatures
+
+Conventions:
+- Test framework: XCTest only (tech.md). Unit tests live in `HanaHouTests/`.
+- Behaviors C1–C12 and B11-C are defined in the design document §Testing Strategy.
+- Each test task names the file to create, the behavior IDs it covers, and the Req IDs it traces to.
+- All tasks are required (no optional `*` sub-tasks); status is tracked per numbered task via the `taskStatus` tool.
+- Every new Swift source file must be added to the `HanaHou` app target; every new Swift test file must be added to the `HanaHouTests` target. Target-membership updates are called out inline in each task, matching the precedent in `.kiro/specs/deck-management/tasks.md`.
+- Task dependencies are implicit by order unless a "Blocked by" note is present.
+
+## Tasks
+
+- [x] 1. Foundations: Core Data v3 migration, value types, protocols, and errors
+  - [x] 1.1 Bump the Core Data model to v3: create `HanaHou/HanaHou.xcdatamodeld/HanaHou 3.xcdatamodel/` by copying `HanaHou 2.xcdatamodel`, add `Card.updatedAt: Date` (required, non-nil `Date()` default per Option A), leave `HanaHou.xcdatamodel` (v1) and `HanaHou 2.xcdatamodel` untouched
+    - Set `Card.updatedAt`'s `Default Value` in the v3 model editor to a non-nil `Date` so inferred lightweight migration can populate existing rows without a post-migration fixup (per approved design §Data Model — "Migration baseline" / Option A)
+    - Update `HanaHou/HanaHou.xcdatamodeld/.xccurrentversion`'s `_XCCurrentVersionName` to `HanaHou 3.xcdatamodel`
+    - Confirm `PersistenceController.init(inMemory:)` still enables `shouldMigrateStoreAutomatically = true` and `shouldInferMappingModelAutomatically = true` (lightweight migration; no mapping model required)
+    - Add the v3 model directory to the `HanaHou` app target's `.xcdatamodeld` bundle resource in `HanaHou.xcodeproj/project.pbxproj`
+    - Blocks every CardStore task below — the v3 schema must be in place before the store reads/writes `updatedAt`
+    - _Requirements: 7.1, 7.2, 7.6_
+  - [x] 1.2 Create `HanaHou/Models/CardDraft.swift` with `struct CardDraft: Equatable { var frontText: String; var backText: String }` per design §Data Model (value types)
+    - Pure value-type scaffolding — no tests required; behavior is exercised via validator/store/view-model tests
+    - Add file to the `HanaHou` app target in `HanaHou.xcodeproj/project.pbxproj`
+    - _Requirements: 1.1, 1.5, 3.1_
+  - [x] 1.3 Create `HanaHou/Models/CardSnapshot.swift` with `struct CardSnapshot: Equatable, Identifiable, Hashable { let id: UUID; let frontText: String; let backText: String; let createdAt: Date; let updatedAt: Date; let deckIds: Set<UUID> }` per design §Data Model
+    - `Hashable` conformance is required so `CardSnapshot` can ride inside `DeckManagementRoute` cases pushed onto `NavigationPath` (same rationale as `DeckSnapshot`)
+    - Pure value-type scaffolding — no tests required
+    - Add file to the `HanaHou` app target
+    - _Requirements: 5.3, 6.1, 7.1, 7.2_
+  - [x] 1.4 Create `HanaHou/Models/CardTextError.swift` with `enum CardTextError: Error, Equatable { case missingFront; case missingBack }` per design §Data Model
+    - Two distinct cases (not one combined) so the editor can surface which field is invalid inline — per design §Data Model / §ViewModels
+    - Pure type declaration — no tests required; behavior is covered by validator and editor view-model tests
+    - Add file to the `HanaHou` app target
+    - _Requirements: 1.3, 1.4, 3.3, 3.4_
+  - [x] 1.5 Create `HanaHou/Models/CardRowItem.swift` with `struct CardRowItem: Identifiable, Equatable, Hashable { let id: UUID; let frontText: String; let backText: String; let isOrphan: Bool }` per design §ViewModels / "Row models"
+    - Pure type declaration — no tests required; view-model tests exercise the mapping from `CardSnapshot` to `CardRowItem`
+    - Add file to the `HanaHou` app target
+    - _Requirements: 2.2, 5.3, 6.1, 6.2_
+  - [x] 1.6 Create `HanaHou/Persistence/CardStore.swift` defining the `CardStore` protocol and `enum CardStoreError: Error { case persistenceFailed(underlying: Error) }` per design §Persistence Layer
+    - Protocol surface: `fetchAll() throws -> [CardSnapshot]`, `fetchInDeck(deckId: UUID) throws -> [CardSnapshot]`, `create(frontText:backText:deckIds:) throws -> CardSnapshot`, `update(id:frontText:backText:) throws`, `delete(id:) throws`, `var changes: AnyPublisher<Void, Never> { get }`
+    - Contract documented in comments: `update`/`delete` on unknown id are silent no-ops that MUST NOT emit on `changes` (parity with `DeckStore`, Req 7 AC 9)
+    - Protocol declaration — no tests required; tested via concrete implementations
+    - Add file to the `HanaHou` app target
+    - _Requirements: 7.1–7.10_
+
+- [x] 2. Domain services (tests first for each)
+  - [x] 2.1 Write `HanaHouTests/Domain/CardTextValidatorTests.swift` with the header format from design §Testing Strategy ("Feature: card-management / Covers behaviors: C1, C2 / Validates requirements: …"); tests must fail because `CardTextValidator` does not yet exist
+    - Covers **C1** (empty front text rejected as `.missingFront`; whitespace/newline-only inputs: `""`, `"   "`, `"\t"`, `"\n"`, `" \t\n "`) and **C2** (empty back text rejected as `.missingBack`; front priority case when both are empty — per design §Domain Layer — front is checked before back; includes trimming semantics)
+    - Add file to the `HanaHouTests` target
+    - _Requirements: 1.3, 1.4, 3.3, 3.4; Glossary "Non-empty text"_
+  - [x] 2.2 Implement `HanaHou/Domain/CardTextValidator.swift` to satisfy 2.1
+    - Pure `static func validate(draft: CardDraft) -> Result<CardDraft, CardTextError>` per design §Domain Layer
+    - `trimmingCharacters(in: .whitespacesAndNewlines)` on both fields; front is checked before back
+    - Add file to the `HanaHou` app target
+    - _Requirements: 1.3, 1.4, 3.3, 3.4_
+  - [x] 2.3 Write `HanaHouTests/Domain/CardOrderingStrategyTests.swift`; tests must fail because `CardOrderingStrategy` / `CardCreationDateAscendingOrdering` do not yet exist
+    - Covers **C8** (createdAt ascending with `id.uuidString` tiebreaker on equal `createdAt`) — mirrors deck-management's B7 test shape exactly
+    - Add file to the `HanaHouTests` target
+    - _Requirements: 2.3, 5.4_
+  - [x] 2.4 Implement `HanaHou/Domain/CardOrderingStrategy.swift` with `protocol CardOrderingStrategy` and `struct CardCreationDateAscendingOrdering: CardOrderingStrategy` per design §Domain Layer — introduce as a **sibling** of `DeckOrderingStrategy`, not a generic `OrderingStrategy<Item>` (per approved design decision)
+    - Add file to the `HanaHou` app target
+    - _Requirements: 2.3, 5.4, 7.1_
+
+- [x] 3. Checkpoint — ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 4. Persistence layer
+  - [x] 4.1 Write `HanaHouTests/Persistence/InMemoryCardStoreTests.swift`; tests must fail because `InMemoryCardStore` does not yet exist
+    - Exercises CRUD, the change-publisher contract, validator parity, and clock-driven timestamps against a pure in-memory implementation
+    - Covers **C1** (empty front rejected), **C2** (empty back rejected; both-empty concurrent case), **C3** (create round-trip sets both `createdAt` and `updatedAt` from the injected clock; snapshot contains the passed `deckIds`; `fetchAll()` and `fetchInDeck(deckId:)` both return the new card), **C4** (edit round-trip preserves `id`/`createdAt`/`deckIds`, bumps `updatedAt`; advancing a mutable clock between `create` and `update`), **C5** (delete removes card from `fetchAll()` and from `fetchInDeck(d)` for every `d` in its `deckIds`; other decks' card lists are untouched — verified against the view-model-level store without a Deck store), **C9** (`update(id:)`/`delete(id:)` on an unknown id: no throw, no mutation, no `changes` emission), **C10** (change publisher emits on successful create/update/delete; does NOT emit on validation-failed create/update or on unknown-id no-op)
+    - Also adds a test that `InMemoryCardStore.simulateDeckDeleted(deckId:)` (test-only helper) removes the deck id from every stored snapshot's `deckIds` and emits one `changes` signal — per design §Persistence Layer / "InMemoryCardStore" (test-only helper, `internal`, not on the protocol)
+    - Add file to the `HanaHouTests` target
+    - _Requirements: 1.3, 1.4, 1.6, 1.7, 2.1, 3.2, 3.3, 3.4, 3.5, 4.2, 4.3, 4.4, 5.5, 7.1, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9_
+  - [x] 4.2 Implement `HanaHou/Persistence/InMemoryCardStore.swift` satisfying 4.1 — per design §Persistence Layer / "InMemoryCardStore"
+    - Backing state: `[UUID: CardSnapshot]`; emits on a `PassthroughSubject<Void, Never>` after each mutation that actually changes state
+    - Re-runs `CardTextValidator` inside `create`/`update` to match `CoreDataCardStore` semantics (defense-in-depth)
+    - `update(id:)`/`delete(id:)` on unknown id are silent no-ops (no throw, no `changes` send); `changes` does not emit on validation failure
+    - Injectable `clock: () -> Date` for deterministic `createdAt`/`updatedAt`
+    - Test-only helper `simulateDeckDeleted(deckId:)` exposed as `internal` — removes the deck id from every stored snapshot's `deckIds` and emits one `changes` signal (documented as test-only; kept off the `CardStore` protocol)
+    - Add file to the `HanaHou` app target
+    - _Requirements: 1.6, 1.7, 3.2, 3.5, 4.2, 4.3, 4.4, 5.5, 7.1, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9_
+  - [x] 4.3 Write `HanaHouTests/Persistence/CoreDataCardStoreTests.swift`; tests must fail because `CoreDataCardStore` does not yet exist
+    - Uses an in-memory Core Data stack (`NSInMemoryStoreType`, matching the `CoreDataDeckStoreTests` pattern) loaded against the v3 model (from task 1.1)
+    - Covers all behaviors listed in 4.1 against a Core Data–backed stack: **C1**, **C2**, **C3**, **C4**, **C5**, **C9**, **C10**
+    - Adds **C6** (card becomes an orphan when its last associated deck is deleted): construct a `CoreDataDeckStore` and a `CoreDataCardStore` sharing the same `NSManagedObjectContext`; create deck D via the deck store, create card C via the card store with `deckIds = [D.id]`, delete D via `CoreDataDeckStore.delete(id:)`, assert that `CoreDataCardStore.fetchAll()` still returns C with `deckIds.isEmpty == true` and that the `CoreDataCardStore.changes` publisher fires after the deck deletion (via the shared-context `NSManagedObjectContextDidSave` notification)
+    - Adds **B11-C** (deck deletion detaches cards without deleting them, asserted through the card-side API): extends C6's fixture with a second deck E so C starts in `[D, E]`; after deleting D, assert C is still in `CoreDataCardStore.fetchAll()` with `deckIds == [E.id]`, and that E is untouched
+    - Verifies the `fetchInDeck(deckId:)` predicate correctly uses the many-to-many `decks` relationship (Req 7.2, 7.4)
+    - Add file to the `HanaHouTests` target
+    - _Requirements: 1.3, 1.4, 1.6, 1.7, 2.1, 3.2, 3.3, 3.4, 3.5, 4.2, 4.3, 4.4, 5.5, 6.1, 6.2, 7.1–7.10_
+  - [x] 4.4 Implement `HanaHou/Persistence/CoreDataCardStore.swift` satisfying 4.3 — per design §Persistence Layer / "CoreDataCardStore"
+    - Mirrors `CoreDataDeckStore` structure: holds `NSManagedObjectContext` + `clock`; observes `NSManagedObjectContextDidSave` on that context and republishes via a `PassthroughSubject<Void, Never>`; removes the observer in `deinit`
+    - `fetchInDeck(deckId:)` uses `NSPredicate(format: "ANY decks.id == %@", deckId as CVarArg)` against the v3 `Card` entity — per design §Persistence Layer
+    - `create(frontText:backText:deckIds:)` resolves `deckIds` to `NSManagedObject` `Deck` references via a single fetch with `"id IN %@"`; missing deck ids are silently dropped from the resulting relationship (consistent with the "unknown id is a no-op" principle); sets `createdAt == updatedAt == clock()` on insert
+    - `update(id:frontText:backText:)` bumps `updatedAt` to `clock()`, preserves `id`/`createdAt`/`deckIds`; unknown id is a silent no-op (no throw, no save, no `changes` emission — per Req 7 AC 9)
+    - `delete(id:)` removes the card (detaches it from every deck via the nullify inverse); unknown id is a silent no-op
+    - Every mutation: validate (where applicable) → mutate → `context.save()`; on save failure, `context.rollback()` + `os.Logger(subsystem: "com.hanahou", category: "CardStore").error(...)` + throw `CardStoreError.persistenceFailed(underlying:)`
+    - Add file to the `HanaHou` app target
+    - _Requirements: 3.2, 3.5, 4.2, 4.3, 4.4, 6.1, 6.2, 7.1–7.10_
+
+- [x] 5. View models
+  - [x] 5.1 Write `HanaHouTests/ViewModels/CardEditorViewModelTests.swift`; tests must fail because `CardEditorViewModel` does not yet exist
+    - Covers **C1** (empty front → `frontError = .missingFront`), **C2** (empty back → `backError = .missingBack`; both-empty surfaces both errors concurrently via the two independent `@Published` channels — per design §ViewModels), **C3** (create success via `InMemoryCardStore` with `deckId` passed through `Mode.create(deckId:)`; submit returns a snapshot with `deckIds == [deckId]`), **C4** (edit success with `updatedAt` advancing via injected clock while `id`/`createdAt`/`deckIds` are preserved), **C7** (orphan editing: starting from a snapshot with `deckIds.isEmpty`, edit-mode pre-populates the text, submit persists while keeping `deckIds.isEmpty`, and `delete()` removes the card — Req 6.3, 6.4)
+    - Asserts submit is gated: `submit()` throws on invalid input and does not persist; the corresponding `@Published` error is set
+    - Add file to the `HanaHouTests` target
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 6.1, 6.3, 6.4_
+  - [x] 5.2 Implement `HanaHou/ViewModels/CardEditorViewModel.swift` satisfying 5.1 — per design §ViewModels / "CardEditorViewModel"
+    - `@MainActor`, `ObservableObject`
+    - `enum Mode: Equatable { case create(deckId: UUID?); case edit(CardSnapshot) }` — `deckId` is optional so a future "create from All Cards" surface can create an orphan; P0 passes `.create(deckId: deck.id)` from the per-Deck editor
+    - `@Published var frontText`, `@Published var backText`, `@Published private(set) var frontError: CardTextError?`, `@Published private(set) var backError: CardTextError?`
+    - `func validate()` applies the two non-empty rules independently to the two fields and publishes both errors (not short-circuited) so the view can render inline messages for each field
+    - `@discardableResult func submit() throws -> CardSnapshot`: re-validates, throws `CardTextError` on failure, otherwise calls `store.create(frontText:backText:deckIds:)` or `store.update(id:frontText:backText:)` and — in the update case — re-reads the updated snapshot via `store.fetchAll()` to return it (the store's `update` is `-> Void` per the protocol; per design §Persistence Layer)
+    - `func delete() throws` — no-ops in `.create` mode; in `.edit` mode calls `store.delete(id:)` and surfaces store errors to the caller
+    - Add file to the `HanaHou` app target
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 6.3, 6.4_
+  - [x] 5.3 Write `HanaHouTests/ViewModels/CardListViewModelTests.swift`; tests must fail because `CardListViewModel` does not yet exist
+    - Covers **C3** (a newly created card for the deck appears in `items`), **C4** (an edit propagates to the matching row), **C5** (deleting a card removes its row from `items`), **C8** (items are sorted using the injected `CardOrderingStrategy` — include a reverse-ordering stub strategy alongside `CardCreationDateAscendingOrdering` for strategy-independence, matching the deck-side precedent in `DeckListViewModelTests`), **C11** (create/update/delete on the store propagate to `items` via the `changes` subscription), **C12** (items are empty when the deck has no associated cards — Req 2 AC 5)
+    - Asserts that cards not associated with the view model's `deckId` never appear in `items`
+    - Add file to the `HanaHouTests` target
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 4.2, 4.3, 7.4_
+  - [x] 5.4 Implement `HanaHou/ViewModels/CardListViewModel.swift` satisfying 5.3 — per design §ViewModels / "CardListViewModel"
+    - `@MainActor`, `ObservableObject`, `@Published private(set) var items: [CardRowItem] = []`, `let deckId: UUID`, `private let store: CardStore`, `private let strategy: CardOrderingStrategy`, `private var cancellables: Set<AnyCancellable> = []`
+    - Subscribes to `store.changes` in `init` and calls `reload()` on each signal (receive on `DispatchQueue.main`)
+    - `reload()` calls `store.fetchInDeck(deckId:)`, applies the strategy, maps `CardSnapshot` → `CardRowItem` (with `isOrphan = snapshot.deckIds.isEmpty`), and writes `items`
+    - Maintains `private var snapshotsById: [UUID: CardSnapshot]` alongside `items` so the view can resolve a tapped row back to a `CardSnapshot` for `.editCard(snapshot)` routing — per design §Views / `CardListView`
+    - `func delete(id: UUID) throws` delegates to `store.delete(id:)` and surfaces errors
+    - Add file to the `HanaHou` app target
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 4.2, 4.3, 7.4_
+  - [x] 5.5 Write `HanaHouTests/ViewModels/AllCardsViewModelTests.swift`; tests must fail because `AllCardsViewModel` does not yet exist
+    - Covers **C3** (a newly created card appears in `items` regardless of its `deckIds`), **C4** (an edit propagates), **C5** (a deletion removes the row), **C6** (card becomes an orphan when its last associated deck is deleted — uses a shared Core Data context with both `CoreDataDeckStore` and `CoreDataCardStore` so the `NSManagedObjectContextDidSave` notification fires the view model's refresh; asserts the orphan row has `isOrphan == true`), **C11** (mutations propagate via the `changes` subscription), **C12** (items are empty when the store has no cards — Req 5 AC 6), **B11-C** (after a deck deletion, cards still attached to other decks remain reachable from `items` with their `deckIds` reduced accordingly)
+    - Add a secondary in-memory-only test that uses `InMemoryCardStore.simulateDeckDeleted(deckId:)` to cover C6 without a Core Data stack, for speed
+    - Add file to the `HanaHouTests` target
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 7.3_
+  - [x] 5.6 Implement `HanaHou/ViewModels/AllCardsViewModel.swift` satisfying 5.5 — per design §ViewModels / "AllCardsViewModel"
+    - Near-duplicate of `CardListViewModel` but queries `store.fetchAll()` instead of `fetchInDeck(deckId:)` — design §ViewModels explicitly rejects unifying the two
+    - Same `items: [CardRowItem]` / `snapshotsById` / `reload()` / `delete(id:)` shape; orphan rows are surfaced via `CardRowItem.isOrphan`
+    - Add file to the `HanaHou` app target
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 7.3_
+
+- [x] 6. Checkpoint — ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 7. Views, navigation, and deck-management route change
+  - Note: P0 does not unit-test SwiftUI view bodies; smoke-level assertions for non-algorithmic items are consolidated in task 7.8 (mirrors the deck-management precedent).
+  - [x] 7.1 Extend `HanaHou/Views/DeckManagementRootView.swift`'s `DeckManagementRoute` enum with the new cases per design §Views / "Navigation wiring": `case cardList(DeckSnapshot)`, `case createCard(deckId: UUID)`, `case editCard(CardSnapshot)` (existing `.createDeck`, `.editDeck(DeckSnapshot)`, `.allCards` cases remain)
+    - Update the init signature to accept `cardStore: CardStore` and `cardStrategy: CardOrderingStrategy` alongside the existing `store`/`strategy` — design §Composition Root Changes specifies the new signature is `(deckStore:cardStore:deckStrategy:cardStrategy:)`; rename the existing parameters accordingly
+    - Update the `navigationDestination(for:)` block:
+      - `.allCards` now resolves to `AllCardsView(viewModel: AllCardsViewModel(store: cardStore, strategy: cardStrategy))` (replaces `AllCardsPlaceholderView`) — Req 5 AC 7, 8 AC 1
+      - `.cardList(deck)` resolves to `CardListView(deck: deck, viewModel: CardListViewModel(deckId: deck.id, store: cardStore, strategy: cardStrategy)) { … }`
+      - `.createCard(deckId)` resolves to `CardEditorView(viewModel: CardEditorViewModel(mode: .create(deckId: deckId), store: cardStore, clock: clock), onFinish: { path.removeLast() })`
+      - `.editCard(snapshot)` resolves to `CardEditorView(viewModel: CardEditorViewModel(mode: .edit(snapshot), store: cardStore, clock: clock), onFinish: { path.removeLast() })`
+    - _Requirements: 5.1, 5.7, 8.1, 8.2_
+  - [x] 7.2 Change the user-deck row tap destination in `HanaHou/Views/DeckListView.swift` from `onNavigate(.editDeck(snapshot))` to `onNavigate(.cardList(snapshot))` — per approved design decision ("Tapping a user-deck row opens `CardListView`; 'Edit deck' moves to a toolbar/swipe affordance")
+    - `.allCards` row tap still pushes `.allCards` (unchanged)
+    - Swipe-to-delete on user-deck rows is unchanged
+    - _Requirements: 2.1 (opens the deck's contents); deck-management behavior change_
+  - [x] 7.3 Create `HanaHou/Views/CardListView.swift` per design §Views / "CardListView"
+    - Parameters: `let deck: DeckSnapshot`, `@ObservedObject var viewModel: CardListViewModel`, `let onNavigate: (DeckManagementRoute) -> Void`
+    - `List` of `CardRowItem`s; each row shows `frontText` (primary) and `backText` (secondary, smaller font)
+    - Swipe-to-delete on each row with a confirmation dialog ("Delete this card? This can't be undone.") that calls `viewModel.delete(id:)`
+    - Toolbar "+" pushes `.createCard(deckId: deck.id)`
+    - Tapping a row pushes `.editCard(snapshot)` — resolved via `viewModel.snapshotsById[rowItem.id]`
+    - **"Edit deck" affordance on the toolbar** (or as a swipe action on the deck row in the navigation title area) that pushes `.editDeck(deck)` — this is where users now reach the rename/delete editor after the route change in 7.2 (per approved design decision)
+    - Empty state (Req 2 AC 5): "No cards yet. Tap + to add one."
+    - Add file to the `HanaHou` app target
+    - _Requirements: 1.1, 1.2, 2.1, 2.2, 2.5, 3.1, 4.1_
+  - [x] 7.4 Create `HanaHou/Views/AllCardsView.swift` per design §Views / "AllCardsView"
+    - Parameters: `@ObservedObject var viewModel: AllCardsViewModel`, `let onNavigate: (DeckManagementRoute) -> Void`
+    - Same row layout as `CardListView`, but **no "+" toolbar button** (creating from All Cards is explicitly out of scope for P0 — design §Open Design Decisions item 2)
+    - Orphan rows surface `CardRowItem.isOrphan` to the row body; the visual treatment is left to implementation (design §Open Design Decisions item 1). Requirement 5 AC 2 only requires they be shown, not visually distinguished
+    - Tapping any row (orphan or not) pushes `.editCard(snapshot)` — Req 6.3, 6.4
+    - Swipe-to-delete wired to `viewModel.delete(id:)`
+    - Empty state (Req 5 AC 6): "No cards yet."
+    - Add file to the `HanaHou` app target
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.2, 6.3, 6.4_
+  - [x] 7.5 Create `HanaHou/Views/CardEditorView.swift` per design §Views / "CardEditorView"
+    - `Form` with two sections: "Front" (`TextField`) and "Back" (`TextField` — plain text only per D011)
+    - Inline error messages bound to `frontError` / `backError`; save button disabled while either error is present or either trimmed field is empty
+    - Toolbar: "Cancel" pops the stack; "Save" calls `viewModel.submit()` and pops on success
+    - Edit-mode only: "Delete Card" button in a red "Danger Zone" section at the bottom, gated behind a confirmation dialog, calling `viewModel.delete()`; hidden in `.create` mode
+    - Alert on `CardStoreError.persistenceFailed(...)` modeled on `DeckEditorView`'s save-error pattern
+    - Add file to the `HanaHou` app target
+    - _Requirements: 1.1, 1.3, 1.4, 1.5, 3.1, 3.3, 3.4, 4.1, 4.2, 6.3, 6.4_
+  - [x] 7.6 Delete `HanaHou/Views/AllCardsPlaceholderView.swift` and remove the file reference from `HanaHou.xcodeproj/project.pbxproj` (both the `PBXFileReference` entry and its membership in the `HanaHou` target's `PBXSourcesBuildPhase`); confirm no code references `AllCardsPlaceholderView` remain after the `navigationDestination(for:)` change in 7.1 — Req 8 AC 2, 8 AC 3
+    - Blocked by: 7.1 (the route destination must already be rewired to `AllCardsView` before the placeholder is removed)
+    - _Requirements: 8.2, 8.3_
+  - [x] 7.7 Extend `DeckManagementRootView` wire-up to inject the new card-side dependencies through its navigation destinations (this is the follow-through from 7.1 that consumes `cardStore`/`cardStrategy`) — ensure `clock` is forwarded into each `CardEditorViewModel` construction, matching how `DeckEditorViewModel` receives `clock` today
+    - Blocked by: 7.1
+    - _Requirements: 5.1, 5.7, 8.1_
+  - [x] 7.8 Extend `HanaHouTests/Views/DeckManagementSmokeTests.swift` with card-side smoke tests (do not create a new test file — add cases to the existing file per design §Testing Strategy "File layout")
+    - `DeckManagementRootView` now compiles with the 4-argument init `(deckStore:cardStore:deckStrategy:cardStrategy:)` and its body evaluates without crashing (smoke, mirrors the existing deck-side test)
+    - `CardEditorViewModel` exposes bindable `frontText` / `backText` fields (Req 1.1, 3.1)
+    - `CardEditorViewModel` in `.edit(snapshot)` mode pre-populates `frontText` and `backText` from the snapshot (Req 3.1)
+    - `CardRowItem` exposes `frontText`, `backText`, and `isOrphan` (Req 2.2, 5.3)
+    - A view-model-level assertion that `.allCards` now resolves to an `AllCardsView` destination (not a placeholder): construct `DeckManagementRootView(...)`, force-evaluate its body, and assert the view tree compiles (smoke; Req 5 AC 7, 8 AC 1) — kept lightweight because SwiftUI's generic types are fragile, same approach the existing file uses for `NavigationStack` presence
+    - Tapping a user-deck row in the view model's intent path routes via `.cardList(snapshot)` rather than `.editDeck(snapshot)` — exercise by directly asserting on a captured `onNavigate` closure for `DeckListView` (the route enum value is what changed in task 7.2)
+    - A view-model-level smoke test for the new "Edit deck" affordance on `CardListView`: constructing `CardListView` with a stub `onNavigate` and invoking the "Edit deck" action routes `.editDeck(deck)` — exercise via a captured closure on the view model / view boundary, same style as the existing `DeckManagementSmokeTests` cases
+    - Each new test case carries the behavior/requirement annotations in the file header comment
+    - _Requirements: 1.1, 2.2, 3.1, 5.3, 5.7, 8.1; deck-management route change_
+
+- [x] 8. Composition root wiring
+  - [x] 8.1 Extend `HanaHou/Persistence.swift`'s `PersistenceController` with `func makeCardStore(clock: @escaping () -> Date = Date.init) -> CoreDataCardStore` that returns a `CoreDataCardStore(context: container.viewContext, clock: clock)` — per design §Composition Root Changes
+    - Sharing `container.viewContext` between `makeDeckStore` and `makeCardStore` is the primitive that makes Req 6 (orphan handling) work: a deck deletion's `NSManagedObjectContextDidSave` reaches both stores' observers automatically
+    - _Requirements: 6.1, 6.2, 7.1, 7.8, 7.10_
+  - [x] 8.2 Update `HanaHou/HanaHouApp.swift`'s composition root to construct `CardCreationDateAscendingOrdering` and pass the card store + strategy to `DeckManagementRootView` — per design §Composition Root Changes
+    - New body: `DeckManagementRootView(deckStore: persistenceController.makeDeckStore(), cardStore: persistenceController.makeCardStore(), deckStrategy: CreationDateAscendingOrdering(), cardStrategy: CardCreationDateAscendingOrdering())`
+    - Rename the existing `orderingStrategy` constant to `deckOrderingStrategy` (or inline it) for symmetry with the new `cardOrderingStrategy`
+    - Orientation lock (Info.plist) is untouched — it's global and needs no card-side change
+    - Blocked by: 7.1, 8.1
+    - _Requirements: 5.7, 7.10, 8.1_
+
+- [x] 9. Final checkpoint — build and run the full test suite
+  - Build the app target (⌘B equivalent) and run all unit tests (⌘U equivalent); confirm the suite is green, the v3 Core Data migration completes cleanly from a fresh store, and no references to `AllCardsPlaceholderView` remain in the build
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 10. Wrap-up: decisions, directory AGENTS.md, and session log
+  - [x] 10.1 Append new decision entries to `docs/decisions.md` (size: mini/small where appropriate; newest first; follow the existing D001–D029 format). Six entries, one per resolved open design decision:
+    - "Card `updatedAt` added in Core Data schema v3, Option A (inferred lightweight migration with a non-nil `Date()` default; no post-migration fixup) — HanaHou has never shipped, so historical `updatedAt` reconstruction has no payoff"
+    - "Tapping a user-deck row in `DeckListView` opens `CardListView` instead of `DeckEditorView`; 'Edit deck' is reachable from a toolbar button (or swipe action) on `CardListView`"
+    - "`CardOrderingStrategy` introduced as a Card-side sibling of `DeckOrderingStrategy` rather than a generic `OrderingStrategy<Item>` protocol, for pattern parity with deck-management"
+    - "`CardStore.update` / `.delete` on unknown id are silent no-ops that do not emit on `changes` (parity with `DeckStore.delete`)"
+    - "`AllCardsView` replaces `AllCardsPlaceholderView`; the placeholder source file is deleted from the project"
+    - "`CardDraft` carries text only; deck membership is a separate `deckIds: Set<UUID>` argument to `CardStore.create` — keeps the draft small and leaves multi-deck editor changes additive for P1+"
+    - _Requirements: (project convention D005, D019)_
+  - [x] 10.2 Update/create `AGENTS.md` in each directory whose contents changed (per D005): `HanaHou/Models/AGENTS.md`, `HanaHou/Domain/AGENTS.md`, `HanaHou/ViewModels/AGENTS.md`, `HanaHou/Views/AGENTS.md`, `HanaHou/Persistence/AGENTS.md`, and the mirrored `HanaHouTests/` subdirectory `AGENTS.md` files (Domain, Persistence, ViewModels, Views). Each update lists the new card-management files and their purpose, without duplicating information already in the root `HanaHou/AGENTS.md`
+    - _Requirements: (project convention D005)_
+  - [x] 10.3 Update `HanaHou/HanaHou.xcdatamodeld/HanaHou.xcdatamodeld` notes and `docs/data-model.md` to reflect the v3 schema (Card now has `updatedAt: Date` required). Do not touch requirements.md or design.md
+    - _Requirements: (docs alignment; 7.1, 7.6)_
+  - [x] 10.4 Add a new session log file under `docs/sessions/` (filename format matches the existing `2026-05-02-kickoff.md`: `YYYY-MM-DD-<slug>.md`; use the implementation date as the slug prefix and `card-management` as the slug suffix — e.g., `docs/sessions/<YYYY-MM-DD>-card-management.md`). Include a brief summary of what was built, which tasks were completed, and links to `.kiro/specs/card-management/requirements.md`, `.kiro/specs/card-management/design.md`, and `.kiro/specs/card-management/tasks.md`
+    - Keep the entry concise (1–2 paragraphs plus a short commits/decisions list), matching the tone of `docs/sessions/2026-05-02-kickoff.md`
+    - _Requirements: (project convention; `docs/sessions/AGENTS.md`)_
+
+## Notes
+
+- The view layer has no unit-test sub-tasks by design (mirrors the deck-management precedent). Non-algorithmic view-layer assertions are consolidated in task 7.8.
+- **Behaviors C6 and B11-C are intentionally covered in two places each** — once in `CoreDataCardStoreTests` (the lowest layer that can exercise the shared-context `NSManagedObjectContextDidSave` path) and once in `AllCardsViewModelTests` (the surface users actually see). This overlap is intentional: it pins D012 down the entire stack (Core Data schema → deck store → card store → view model → UI-visible `AllCardsView`).
+- **Route change in task 7.2 is a deck-management behavior change**, not just card-management scope. Treat it as such in the code review: the user-deck row tap now lands on `CardListView` rather than `DeckEditorView`, and the rename/delete editor is reachable from `CardListView`'s toolbar (or swipe action). Smoke tests in 7.8 cover both the new route and the re-located "Edit deck" affordance.
+- **Task 1.1 is a hard prerequisite** for every CardStore task. Do not start the store work until the v3 model is current, lightweight migration has been confirmed to work, and the app builds against v3.
+- **Target-membership** is called out inline on every new-file task so the `HanaHou.xcodeproj/project.pbxproj` diffs stay consistent with the deck-management precedent. Add app sources to the `HanaHou` target and test sources to the `HanaHouTests` target — there are no new test sources that need to live in `HanaHouUITests`.
+- **`HanaHouUITests/`** is not exercised in P0 (same as deck-management). Existing UI tests should continue to compile after the `.allCards` destination swap and the deck-row route change; if they fail to build, fix minimally — do not add new UI tests.
+- Per design §Open Design Decisions, orphan badging in `AllCardsView` is a visual choice left to implementation; requirement 5 AC 2 only mandates that orphans be shown. `CardRowItem.isOrphan` is already wired through the row model so a future badge is an additive change.
+- "Create card from All Cards" is intentionally not wired in P0 (design §Open Design Decisions item 2). `CardEditorViewModel.Mode.create(deckId: UUID?)` supports it for a future spec; no P0 task surfaces the affordance.

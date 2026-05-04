@@ -2,7 +2,39 @@
 
 Significant decisions with rationale. Newest first. Size: mini | small | medium | large | huge.
 
+## Decisions
+
 ---
+
+### D035: CardDraft carries text only; deck membership is a separate argument to CardStore.create [mini]
+**Date:** 2026-05-02
+**Decision:** `CardDraft` has only `frontText` and `backText`. Initial deck membership is a separate `deckIds: Set<UUID>` parameter on `CardStore.create(frontText:backText:deckIds:)`. The P0 editor passes a singleton set from the per-deck flow; a future multi-deck editor can pass any set without changing the draft value type.
+**Rationale:** Keeps the draft value type small and stable. Multi-deck editing is a P1+ concern — making it additive through the store parameter means the draft doesn't need to evolve later.
+
+### D034: AllCardsView replaces AllCardsPlaceholderView; placeholder source file is deleted [mini]
+**Date:** 2026-05-02
+**Decision:** The P0 `AllCardsPlaceholderView` is removed from the project entirely. The `.allCards` navigation destination resolves to `AllCardsView`. Git history preserves the placeholder — no reason to keep dead code in the repo.
+**Rationale:** Simpler navigation and no maintenance tax on a file that no code paths reach.
+
+### D033: CardStore.update / .delete on unknown id are silent no-ops that do not emit on changes [small]
+**Date:** 2026-05-02
+**Decision:** Both in-memory and Core Data `CardStore` implementations treat `update(id:...)` and `delete(id:)` with an id that doesn't exist as a no-op: no throw, no mutation, no emission on `changes`. Mirrors `DeckStore.delete`'s idempotent-mutation contract.
+**Rationale:** Idempotent mutations are safer and easier to reason about from the view-model layer. View models that fire stale ids (e.g., after a background deletion) don't need to special-case "it's already gone".
+
+### D032: CardOrderingStrategy introduced as a Card-side sibling of DeckOrderingStrategy, not a generic [small]
+**Date:** 2026-05-02
+**Decision:** `CardOrderingStrategy` is its own protocol taking `[CardSnapshot]`, mirroring `DeckOrderingStrategy`. Considered a generic `OrderingStrategy<Item>` that both would adopt, and rejected it: the symmetry-with-existing-pattern payoff beats the marginal DRY at P0 scale, and a generic protocol would need constraints (`Item: Identifiable` + accessors) that add indirection without paying for themselves yet.
+**Rationale:** D009 says ordering is a pluggable strategy per concept, not a cross-entity abstraction. Future card orderings (e.g., "most recently updated") fit a card-specific protocol naturally.
+
+### D031: Tapping a user-deck row opens CardListView, not DeckEditorView [small]
+**Date:** 2026-05-02
+**Decision:** In `DeckListView`, tapping a user-deck row pushes `.cardList(deck)` instead of the previous `.editDeck(deck)`. The rename/delete editor is reachable from `CardListView`'s toolbar "Edit Deck" button and the existing swipe-to-delete on the deck-list row.
+**Rationale:** Users open a deck to see its cards. The previous edit-on-tap was a placeholder-era artifact because there was nothing to show inside a deck yet. Now that cards exist, the natural destination is the card list.
+
+### D030: Card updatedAt added in Core Data schema v3 with a static Date default [mini]
+**Date:** 2026-05-02
+**Decision:** Added `Card.updatedAt: Date` (required) in `HanaHou 3.xcdatamodel`. Lightweight inferred migration uses a non-nil default value so any pre-v3 rows get a migration-time `Date()` — no post-migration fixup to set `updatedAt = createdAt` for existing rows. HanaHou has never shipped, so the semantic-correctness payoff of the fixup was zero.
+**Rationale:** Simpler migration, same observable behavior. If the app ever ships before this migration runs, we revisit.
 
 ### D029: Branching and PR conventions [small]
 **Date:** 2026-05-02
