@@ -6,6 +6,9 @@ Personal knowledge journal — concepts I've learned while building HanaHou. New
 
 ---
 
+### 2026-05-03: Git commit title vs description
+`git commit -m "title" -m "description"` creates a commit with a title (first `-m`) and an extended description (second `-m`), separated by a blank line. The title is what shows in `git log --oneline` and GitHub's commit list. The description appears in the full commit view. This is the same format GitHub's squash-merge UI uses with its separate "title" and "description" fields.
+
 ### 2026-05-03: CodeRabbit for automated PR review
 CodeRabbit (coderabbit.ai) is an AI-powered PR reviewer that auto-comments on GitHub PRs. We installed it on the HanaHou repo and used it on PR #1 (card management). It caught real issues: missing Core Data uniqueness constraint on Card.id, swallowed errors in view models (`try?` hiding persistence failures), and nondeterministic test fixtures. It also flagged low-value items (session log prose, markdown lint). The free trial lasts one week — after that it requires a paid plan. Worth using during active development sprints. If the trial expires, our manual review prompt template (`.kiro/steering/prompt-templates.md`) covers the same ground.
 

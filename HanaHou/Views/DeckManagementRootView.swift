@@ -87,6 +87,17 @@ struct DeckManagementRootView: View {
                 ),
                 onFinish: { path.removeLast() }
             )
+        case .study(let deck):
+            StudyView(
+                deck: deck,
+                viewModel: StudySessionViewModel(
+                    deckId: deck.id,
+                    store: cardStore,
+                    strategy: cardStrategy
+                ),
+                onExit: { path.removeLast() },
+                onReturnHome: { path.removeLast(path.count) }
+            )
         }
     }
 }
@@ -99,4 +110,5 @@ enum DeckManagementRoute: Hashable {
     case cardList(DeckSnapshot)
     case createCard(deckId: UUID)
     case editCard(CardSnapshot)
+    case study(DeckSnapshot)
 }

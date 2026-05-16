@@ -19,6 +19,13 @@ final class InMemoryDeckStore: DeckStore {
         self.clock = clock
     }
 
+    // Explicit `nonisolated deinit` sidesteps the Swift 6 isolated-deinit
+    // path that can trap (libmalloc "pointer being freed was not
+    // allocated") when a MainActor-isolated reference type is deallocated
+    // synchronously from the main thread under Xcode 26 / iOS 26. The
+    // store holds no resources that need main-actor cleanup.
+    nonisolated deinit {}
+
     var changes: AnyPublisher<Void, Never> {
         changesSubject.eraseToAnyPublisher()
     }

@@ -11,6 +11,7 @@ Main-actor `ObservableObject` view models. Own UI state, talk to `DeckStore` / `
 | `CardEditorViewModel.swift` | Drives `CardEditorView`. Two modes (`create(deckId: UUID?)`, `edit(CardSnapshot)`), bindable `frontText`/`backText`, independent `@Published` `frontError`/`backError` channels, `validate()` (applies both non-empty rules without short-circuiting), `submit()` (create or update+refetch via `store.fetchAll()`), and `delete()` (no-op in `.create` mode). |
 | `CardListViewModel.swift` | Drives the per-Deck `CardListView`. Subscribes to `CardStore.changes` and re-queries `fetchInDeck(deckId:)` on each signal, applying the injected `CardOrderingStrategy`. Exposes `items: [CardRowItem]` and `snapshot(forRowId:)` for row-tap routing. |
 | `AllCardsViewModel.swift` | Drives `AllCardsView`. Same shape as `CardListViewModel` but queries `fetchAll()` — surfaces every card, orphans included. |
+| `StudySessionViewModel.swift` | Drives `StudyView` and `StudyCompletionView` — the Req 9 "Study_Manager" for study-mode. Fetches the source deck's cards and orders them via the injected `CardOrderingStrategy` at construction time, then never touches the store again (the session is a start-time snapshot per Req 1 AC 8). Exposes `session: StudySession`, `currentCard: CurrentCardView?`, and `loadError`. Intents: `flip()`, `grade(_:)`, `exit()`, `returnHome()`. Depends only on the `CardStore` and `CardOrderingStrategy` protocols; in-memory-only, no writes. |
 
 ## Directives
 

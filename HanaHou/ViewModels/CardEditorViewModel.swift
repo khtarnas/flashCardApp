@@ -58,6 +58,13 @@ final class CardEditorViewModel: ObservableObject {
         self.backError = nil
     }
 
+    // Explicit `nonisolated deinit` sidesteps the Swift 6 isolated-deinit
+    // path that can trap (libmalloc "pointer being freed was not allocated")
+    // when a `@MainActor` view model is deallocated synchronously from the
+    // main thread under Xcode 26 / iOS 26. The view model holds no
+    // resources that need main-actor cleanup.
+    nonisolated deinit {}
+
     /// Applies the two non-empty rules independently to the two fields and
     /// publishes both errors. Not short-circuited — both errors may be set
     /// concurrently when both fields are trimmed-empty.
