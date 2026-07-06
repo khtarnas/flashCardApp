@@ -5,20 +5,22 @@ inclusion: always
 
 ```
 HanaHou/
-├── .kiro/steering/          ← Agent steering files (always loaded)
-├── docs/                    ← Product docs, priority tiers, decisions, session logs
-│   └── sessions/            ← Per-session development logs
-├── HanaHou/                 ← App source code (SwiftUI views, Core Data models, etc.)
-├── HanaHouTests/            ← Unit tests (XCTest)
-├── HanaHouUITests/          ← UI tests (XCTest UI)
-├── HanaHou.xcodeproj/       ← Xcode project configuration
-├── AGENTS.md                ← Root-level agent directives
-└── README.md                ← Human-facing project overview
+├── .kiro/steering/              ← Agent steering files (always loaded)
+│   └── agent-modes/             ← PM, SDE, and Reviewer mode definitions
+├── docs/                        ← Product docs, priority tiers, decisions, session logs
+│   └── sessions/                ← Per-session development logs
+├── HanaHou/                     ← App source code (SwiftUI views, Core Data models, etc.)
+├── HanaHouTests/                ← Unit tests (XCTest)
+├── HanaHouUITests/              ← UI tests (XCTest UI)
+├── HanaHou.xcodeproj/           ← Xcode project configuration
+├── AGENTS.md                    ← Root-level agent directives
+└── README.md                    ← Human-facing project overview
 ```
 
 ## Directory purposes
 
-- **`.kiro/steering/`** — Foundational context loaded into every agent interaction. Contains product overview, tech stack, this structure doc, steering rules, and agent mode definitions (PM mode, SDE mode).
+- **`.kiro/steering/`** — Foundational context loaded into every agent interaction. Contains product overview, tech stack, this structure doc, steering rules, and prompt templates.
+- **`.kiro/steering/agent-modes/`** — Mode-specific workflow definitions (PM, SDE, Reviewer). Access is restricted per mode: each agent reads only its own mode file. Only PM mode may read all three. See `steering.md` section 2 for the access rules.
 - **`docs/`** — All product and technical documentation. Priority tier scopes, data model, decision log, open questions, roadmap.
 - **`docs/sessions/`** — Chronological session logs capturing what was done, decided, and learned.
 - **`HanaHou/`** — All app source code. SwiftUI views, Core Data model, persistence layer, and app entry point.

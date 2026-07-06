@@ -25,12 +25,14 @@ For each finding, provide:
 - **Suggestion:** How to fix it
 
 Categorize findings as:
-- 🔴 **Must fix** — Bugs, broken behavior, doc/code mismatch
-- 🟡 **Should fix** — Style issues, missing tests, unclear code
-- 🟢 **Consider** — Improvements, refactors, nice-to-haves
+- [MUST FIX] — Bugs, broken behavior, doc/code mismatch
+- [SHOULD FIX] — Style issues, missing tests, unclear code
+- [CONSIDER] — Improvements, refactors, nice-to-haves
 
 ## What NOT to do
 
 - Do not modify any files. Report findings only.
 - Do not make product decisions. Flag design questions for PM mode.
 - Do not implement fixes. Flag them for SDE mode.
+- **Do not read `.kiro/specs/` (requirements, design, or task docs).** These contain the implementation plan and would bias the review toward confirming the plan rather than independently evaluating the code. Use `docs/decisions.md`, steering docs, and the source code itself as your references.
+- **Do not run the test suite.** Evaluate test quality, coverage, and correctness by reading the test code. Test execution and regression verification is the SDE agent's responsibility.

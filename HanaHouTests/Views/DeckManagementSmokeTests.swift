@@ -356,22 +356,36 @@ final class DeckManagementSmokeTests: XCTestCase {
         XCTAssertEqual(decoded.id, snapshot.id)
     }
 
-    // Req 1.1, 8.2 — `CardListView` carries a toolbar button with the
-    // `StudyButton` accessibility identifier. `AllCardsView` deliberately
-    // does NOT (deferred from P0 per D041 — not permanently excluded).
-    // We can't extract an identifier from the SwiftUI view tree in a
-    // unit test; instead we pin the identifier string at its callsite
-    // by asserting the expected value is referenced in exactly one
-    // place — via a constant check — so that a refactor has to pick it
-    // up on both sides.
-    func test_cardListView_exposesStudyButtonIdentifier() {
-        // The identifier is the stable contract between the toolbar
-        // button (HanaHou/Views/CardListView.swift) and any future UI
-        // test. Pinning it as a constant here catches accidental
-        // renames during implementation.
-        let expected = "StudyButton"
-        XCTAssertEqual(expected, "StudyButton",
-            "Study toolbar button identifier must remain 'StudyButton' — contract with future UI tests.")
+    // Req 1.1, 8.2 — `CardListView`'s body builds with the Study
+    // toolbar button code in place. We can't introspect SwiftUI's
+    // view tree to extract an accessibility identifier from a unit
+    // test without UI-test infrastructure (intentionally absent in
+    // P0 per `HanaHou/Views/AGENTS.md`). What this test guards against
+    // is an accidental compile-time regression — e.g., the Study
+    // button is removed, its toolbar code stops type-checking, or
+    // its `onNavigate(.study(...))` closure no longer compiles. This
+    // mirrors the pattern of `test_deckManagementRootView_canBeInstantiatedWithStore`.
+    func test_cardListView_compilesWithStudyToolbarButton() {
+        let store = InMemoryCardStore(clock: { Date(timeIntervalSince1970: 1_000) })
+        let deck = DeckSnapshot(
+            id: UUID(),
+            name: "Japanese",
+            frontLanguage: .english,
+            backLanguage: .japanese,
+            createdAt: Date(timeIntervalSince1970: 1_000),
+            updatedAt: Date(timeIntervalSince1970: 1_000)
+        )
+        let viewModel = CardListViewModel(
+            deckId: deck.id,
+            store: store,
+            strategy: CardCreationDateAscendingOrdering()
+        )
+
+        let view = CardListView(deck: deck, viewModel: viewModel) { _ in }
+
+        // Forcing body evaluation is enough to confirm the toolbar
+        // code path — including the Study button — type-checks.
+        _ = view.body
     }
 
     // Req 6.2, 6.3 — `StudyCompletionView` renders the deck name and a

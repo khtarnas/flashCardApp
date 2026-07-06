@@ -27,7 +27,7 @@ Check alignment with:
 
 ## Output
 For each finding: What, Where, Why it matters, Suggestion.
-Categorize: 🔴 Must fix, 🟡 Should fix, 🟢 Consider.
+Categorize: [MUST FIX], [SHOULD FIX], [CONSIDER].
 ```
 
 ## Spec Mode Feature Prompt

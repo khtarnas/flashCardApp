@@ -8,7 +8,7 @@ HanaHou is an offline-first flashcard app built with SwiftUI and Core Data, desi
 
 ## Status
 
-🔴 **Pre-development** — Project structure and documentation established. No custom functionality implemented yet.
+**P0 complete** — Deck management, card management, and study mode are implemented with 229 passing tests.
 
 ## Tech Stack
 

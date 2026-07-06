@@ -28,9 +28,30 @@ import SwiftUI
 /// (D014/D028) — no study-side override (Req 8 AC 3, 8 AC 4).
 struct StudyView: View {
     let deck: DeckSnapshot
-    @StateObject var viewModel: StudySessionViewModel
+    @StateObject private var viewModel: StudySessionViewModel
     let onExit: () -> Void
     let onReturnHome: () -> Void
+
+    /// The view model is `@StateObject private` to match the rest of
+    /// the codebase (e.g., `DeckManagementRootView`'s `viewModel`).
+    /// The parent constructs it and passes it in, but ownership belongs
+    /// to this view — `@StateObject` keeps the same instance alive
+    /// across body re-evaluations, and `private` prevents external
+    /// rebinding. The `@autoclosure @escaping` wrapper means the
+    /// passed-in view model is only materialized once, when SwiftUI
+    /// first installs the StateObject; subsequent re-renders reuse
+    /// the same instance instead of constructing a new one.
+    init(
+        deck: DeckSnapshot,
+        viewModel: @autoclosure @escaping () -> StudySessionViewModel,
+        onExit: @escaping () -> Void,
+        onReturnHome: @escaping () -> Void
+    ) {
+        self.deck = deck
+        self.onExit = onExit
+        self.onReturnHome = onReturnHome
+        _viewModel = StateObject(wrappedValue: viewModel())
+    }
 
     var body: some View {
         content
@@ -176,7 +197,13 @@ struct StudyView: View {
                     .accessibilityIdentifier(studyGradeIdentifier(for: grade))
                 }
             }
-        default:
+        case .completed, .emptyDeck:
+            // The phase-dispatch in `content` routes these phases to
+            // `StudyCompletionView` and `emptyDeckContent` respectively
+            // before `actionArea` is ever invoked. This branch is
+            // unreachable in practice, but listing the cases explicitly
+            // (rather than `default:`) makes the compiler enforce
+            // exhaustiveness if a new `Phase` case is ever added.
             EmptyView()
         }
     }
