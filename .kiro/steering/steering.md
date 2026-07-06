@@ -21,13 +21,21 @@ inclusion: always
 
 At the start of every new session, ask the user: **"PM mode, SDE mode, or Reviewer mode?"**
 
-- **PM mode:** Discovery, planning, and documentation. No code. See `.kiro/steering/pm-mode.md`.
-- **SDE mode:** Design, test, and implement features. TDD only. See `.kiro/steering/sde-mode.md`.
-- **Reviewer mode:** Audit code, docs, and architecture. Report findings only — no changes. See `.kiro/steering/reviewer-mode.md`.
+- **PM mode:** Discovery, planning, and documentation. No code. See `.kiro/steering/agent-modes/pm-mode.md`.
+- **SDE mode:** Design, test, and implement features. TDD only. See `.kiro/steering/agent-modes/sde-mode.md`.
+- **Reviewer mode:** Audit code, docs, and architecture. Report findings only — no changes. See `.kiro/steering/agent-modes/reviewer-mode.md`.
 
 Modes are **strictly separated.** Do not blend them. If a cross-concern arises (e.g., a design question in SDE mode, or a bug found in PM mode), flag it and ask the user to switch modes.
 
 The user may switch modes mid-session by saying so explicitly.
+
+### Mode file access rules
+
+Agents in a given mode should only read their own mode file from `.kiro/steering/agent-modes/`. Only PM mode may read all three.
+
+- **PM mode:** May read `pm-mode.md`, `sde-mode.md`, `reviewer-mode.md`
+- **SDE mode:** May read `sde-mode.md` only
+- **Reviewer mode:** May read `reviewer-mode.md` only
 
 ### Relationship to Kiro IDE modes
 
@@ -99,11 +107,15 @@ For each feature, follow three phases in order:
 - Regular merge by default. Squash merge on a case-by-case basis.
 - Delete the branch after merge.
 - Docs-only changes can push directly to `main` — no PR needed.
-- Code changes go through PRs with CodeRabbit auto-review.
+- Code changes go through PRs with a local reviewer agent (spec-blind, per `.kiro/steering/agent-modes/reviewer-mode.md`).
 - PR review happens in the GitHub UI.
-- **CodeRabbit evaluation (trial expires May 16, 2026):** Run both CodeRabbit and the manual reviewer prompt (`#prompt-templates`) on every PR's initial review — before any fixes. Compare findings and record differences in the session log. Subsequent fix commits don't need dual review. Decide whether to keep CodeRabbit after the trial based on signal-to-noise ratio and coverage gaps.
 
 ### Prompting guidelines (for Spec mode and agent interactions)
+
+- **Pipeline PM work during reviews.** While a PR is open and under review, PM mode can start requirements/design/tasks for the next feature in parallel. Don't wait for the current PR to merge before beginning the next spec.
+
+- For any content where formatting matters (PR descriptions, commit messages, prompts for other agents), write to `~/Downloads/` as a file rather than outputting inline in chat. Copy-paste from the chat window often breaks formatting.
+- **No emojis.** Do not use emojis in code, docs, commit messages, PR descriptions, comments, or any project artifact. The only exception is if code genuinely needs to handle emoji (e.g., a test verifying emoji support in text fields).
 
 - State the user's goal, not just the feature name
 - Point to existing docs (`docs/p0.md`, `docs/data-model.md`) rather than restating their contents

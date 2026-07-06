@@ -4,12 +4,12 @@
 
 | Tier | Theme | Status |
 |------|-------|--------|
-| P0 | Core flashcards (decks, cards, study mode) | 🟡 In progress |
-| P1 | Study persistence + UX polish | 🔴 Not started |
-| P2 | SRS (spaced repetition) | 🔴 Not started |
-| P3 | Rich content + layout | 🔴 Not started |
-| P4 | AI integration | 🔴 Not started |
-| P5 | Word-count tracking, study logging, conversational topics | 🔴 Not started |
+| P0 | Core flashcards (decks, cards, study mode) | In progress |
+| P1 | Study persistence + UX polish | Not started |
+| P2 | SRS (spaced repetition) | Not started |
+| P3 | Rich content + layout | Not started |
+| P4 | AI integration | Not started |
+| P5 | Word-count tracking, study logging, conversational topics | Not started |
 
 ## Feature Backlog
 
